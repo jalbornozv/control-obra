@@ -117,7 +117,11 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
   })
 
   const { error: partidasError } = await supabase.from('partidas').insert(partidas)
-  if (partidasError) throw new Error(`Error importando partidas: ${partidasError.message}`)
+  if (partidasError) {
+    // rollback: eliminar la obra orphan
+    await supabase.from('obras').delete().eq('id', obraData.id)
+    throw new Error(`Error importando partidas: ${partidasError.message}`)
+  }
 
   onProgreso?.('¡Importación completa!')
   return obraId

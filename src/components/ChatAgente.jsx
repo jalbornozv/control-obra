@@ -62,12 +62,13 @@ async function ejecutarActualizacion(tool_use, diaActual) {
 
   if (patchError) throw new Error(patchError.message)
 
-  await supabase.from('registros').insert({
+  const { error: regError } = await supabase.from('registros').insert({
     partida_id,
     dia_obra: diaActual,
     avance_pct,
     nota,
   })
+  if (regError) console.warn('Error registrando avance en historial:', regError.message)
 }
 
 export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
@@ -104,18 +105,16 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
       if (response.stop_reason === 'tool_use') {
         const toolUses = response.content.filter(b => b.type === 'tool_use')
         const resultados = []
-        let huboError = false
 
         for (const toolUse of toolUses) {
           const partida = partidas.find(p => p.id === toolUse.input.partida_id)
           const nombre = partida?.nombre || toolUse.input.partida_id
           try {
             await ejecutarActualizacion(toolUse, diaActual)
-            resultados.push(`✅ ${nombre} → ${toolUse.input.avance_pct}%`)
+            resultados.push(`✅ Actualizado: ${nombre} → ${toolUse.input.avance_pct}%`)
             onAvanceUpdated?.()
           } catch (e) {
             resultados.push(`❌ Error al actualizar ${nombre}: ${e.message}`)
-            huboError = true
           }
         }
 
