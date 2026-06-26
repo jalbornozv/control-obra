@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { useObra } from './hooks/useObra'
+import { useObras } from './hooks/useObras'
 import { usePartidas } from './hooks/usePartidas'
 import ResumenGeneral from './components/ResumenGeneral'
 import GanttView from './components/GanttView'
 import FinancieroView from './components/FinancieroView'
 import ChatAgente from './components/ChatAgente'
+import ProyectoSelector from './components/ProyectoSelector'
+import NuevaObra from './components/NuevaObra'
 
 const TABS = [
   { id: 'resumen', label: '📊 Resumen' },
@@ -15,35 +17,54 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState('resumen')
-  const { obra, loading: obraLoading } = useObra()
-  const { partidas, loading: partidasLoading, refetch } = usePartidas(obra?.id)
+  const [obraSeleccionadaId, setObraSeleccionadaId] = useState(null)
+  const [mostrarNueva, setMostrarNueva] = useState(false)
 
-  if (obraLoading) return <div className="loading">Cargando obra...</div>
-  if (!obra) return <div className="loading">No se encontró ninguna obra.</div>
+  const { obras, loading: obrasLoading } = useObras()
+  const obraActual = obras.find(o => o.id === obraSeleccionadaId) || (obras.length === 1 ? obras[0] : null)
+  const { partidas, loading: partidasLoading, refetch } = usePartidas(obraActual?.id)
 
-  const props = { obra, partidas, loading: partidasLoading }
+  if (obrasLoading) return <div className="loading">Cargando...</div>
+
+  if (mostrarNueva) {
+    return (
+      <NuevaObra
+        onImportada={id => { setObraSeleccionadaId(id); setMostrarNueva(false) }}
+        onCancelar={() => setMostrarNueva(false)}
+      />
+    )
+  }
+
+  if (!obraActual) {
+    return (
+      <ProyectoSelector
+        obras={obras}
+        onSeleccionar={setObraSeleccionadaId}
+        onNueva={() => setMostrarNueva(true)}
+      />
+    )
+  }
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>🏗️ {obra.nombre}</h1>
+        <h1 style={{ cursor: obras.length > 1 ? 'pointer' : 'default' }} onClick={() => obras.length > 1 && setObraSeleccionadaId(null)}>
+          🏗️ {obraActual.nombre}
+          {obras.length > 1 && <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 8 }}>▼ cambiar</span>}
+        </h1>
         <nav className="tabs">
           {TABS.map(t => (
-            <button
-              key={t.id}
-              className={`tab-btn ${tab === t.id ? 'active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
+            <button key={t.id} className={`tab-btn ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
               {t.label}
             </button>
           ))}
         </nav>
       </header>
       <main className="app-main">
-        {tab === 'resumen' && <ResumenGeneral {...props} />}
-        {tab === 'gantt' && <GanttView {...props} />}
-        {tab === 'financiero' && <FinancieroView {...props} />}
-        {tab === 'chat' && <ChatAgente {...props} onAvanceUpdated={refetch} />}
+        {tab === 'resumen' && <ResumenGeneral obra={obraActual} partidas={partidas} loading={partidasLoading} />}
+        {tab === 'gantt' && <GanttView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
+        {tab === 'financiero' && <FinancieroView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
+        {tab === 'chat' && <ChatAgente obra={obraActual} partidas={partidas} loading={partidasLoading} onAvanceUpdated={refetch} />}
       </main>
     </div>
   )
