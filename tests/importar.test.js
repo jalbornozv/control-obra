@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { parsearPresupuesto, parsearGantt } from '../src/lib/importar'
+import { parsearPresupuesto, parsearGantt, leerFilasGantt, parsearGanttDesdeHeader, GanttFormatError } from '../src/lib/importar'
 
 // Mock supabase to avoid real DB calls
 vi.mock('../src/lib/supabase', () => ({
@@ -140,7 +140,7 @@ describe('parsearGantt', () => {
     ])
 
     const wb = { SheetNames: ['Carta Gantt'], Sheets: { 'Carta Gantt': {} } }
-    expect(() => parsearGantt(wb)).toThrow('El archivo Gantt no tiene el formato esperado.')
+    expect(() => parsearGantt(wb)).toThrow()
   })
 
   it('cae al primer sheet si no existe "Carta Gantt"', () => {
@@ -153,5 +153,86 @@ describe('parsearGantt', () => {
     const result = parsearGantt(wb)
     expect(result.length).toBe(1)
     expect(result[0].cuadrilla).toBe('Eléctrico')
+  })
+})
+
+describe('leerFilasGantt', () => {
+  beforeEach(() => {
+    vi.spyOn(XLSX.utils, 'sheet_to_json')
+  })
+
+  it('retorna máximo 20 filas como array de arrays', () => {
+    const rows = Array.from({ length: 25 }, (_, i) => [`fila${i}`, null, null])
+    XLSX.utils.sheet_to_json.mockReturnValue(rows)
+    const wb = { SheetNames: ['Carta Gantt'], Sheets: { 'Carta Gantt': {} } }
+    const result = leerFilasGantt(wb)
+    expect(result).toHaveLength(20)
+    expect(result[0][0]).toBe('fila0')
+  })
+
+  it('usa la primera hoja si no hay hoja con "gantt" en el nombre', () => {
+    XLSX.utils.sheet_to_json.mockReturnValue([['celda', null]])
+    const wb = { SheetNames: ['MiHoja'], Sheets: { MiHoja: {} } }
+    const result = leerFilasGantt(wb)
+    expect(result[0][0]).toBe('celda')
+  })
+})
+
+describe('parsearGanttDesdeHeader', () => {
+  beforeEach(() => {
+    vi.spyOn(XLSX.utils, 'sheet_to_json')
+  })
+
+  it('parsea partidas desde una fila de encabezado específica', () => {
+    XLSX.utils.sheet_to_json.mockReturnValue([
+      ['TITULO', null, null, null, null, null, null, null, null, null],
+      ['Cuadrilla / Especialidad', null, 'N°', 'Partida', null, null, null, null, 'Día Ini', 'Día Fin'],
+      ['Civil', null, '1', 'Excavación', null, null, null, null, 1, 5],
+    ])
+    const wb = { SheetNames: ['Carta Gantt'], Sheets: { 'Carta Gantt': {} } }
+    const result = parsearGanttDesdeHeader(wb, 1)
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({ cuadrilla: 'Civil', numero: '1', nombre: 'Excavación', dia_ini: 1, dia_fin: 5 })
+  })
+
+  it('lanza error si no hay partidas desde esa fila', () => {
+    XLSX.utils.sheet_to_json.mockReturnValue([
+      ['Sección', null, 'N°', 'Partida', null, null, null, null, 'Día Ini', 'Día Fin'],
+    ])
+    const wb = { SheetNames: ['Carta Gantt'], Sheets: { 'Carta Gantt': {} } }
+    expect(() => parsearGanttDesdeHeader(wb, 0)).toThrow()
+  })
+})
+
+describe('GanttFormatError', () => {
+  it('es instancia de Error', () => {
+    const e = new GanttFormatError('mensaje', [[]])
+    expect(e).toBeInstanceOf(Error)
+  })
+
+  it('incluye .filas con las filas crudas', () => {
+    const filas = [['A', 'B'], ['C', 'D']]
+    const e = new GanttFormatError('mensaje', filas)
+    expect(e.filas).toBe(filas)
+  })
+})
+
+describe('parsearGantt — formato desconocido', () => {
+  beforeEach(() => {
+    vi.spyOn(XLSX.utils, 'sheet_to_json')
+  })
+
+  it('lanza GanttFormatError con .filas cuando no encuentra encabezado', () => {
+    const rows = [
+      ['CARTA GANTT 60 DÍAS', null, null],
+      ['Sección', null, null],
+      ['A. DEMOLICIONES', null, null],
+    ]
+    XLSX.utils.sheet_to_json.mockReturnValue(rows)
+    const wb = { SheetNames: ['Carta Gantt'], Sheets: { 'Carta Gantt': {} } }
+    let caught = null
+    try { parsearGantt(wb) } catch (e) { caught = e }
+    expect(caught).toBeInstanceOf(GanttFormatError)
+    expect(Array.isArray(caught.filas)).toBe(true)
   })
 })

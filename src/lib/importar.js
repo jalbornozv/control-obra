@@ -1,6 +1,14 @@
 import * as XLSX from 'xlsx'
 import { supabase } from './supabase'
 
+export class GanttFormatError extends Error {
+  constructor(message, filas) {
+    super(message)
+    this.name = 'GanttFormatError'
+    this.filas = filas
+  }
+}
+
 export function parsearPresupuesto(workbook) {
   const ws = workbook.Sheets[workbook.SheetNames[0]]
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
@@ -9,7 +17,6 @@ export function parsearPresupuesto(workbook) {
 
   for (const row of rows) {
     const [num, nombre, unidad, cantidad, precio_unit, subtotal] = row
-    // Detectar fila de sección: columna A es string con formato "X. NOMBRE"
     if (typeof num === 'string' && /^[A-Z]\.\s/.test(num)) {
       seccionActual = num
       continue
@@ -30,47 +37,36 @@ export function parsearPresupuesto(workbook) {
   return items
 }
 
-export function parsearGantt(workbook) {
-  // Intenta hoja 'Carta Gantt' primero, si no la primera hoja disponible
-  const sheetName = workbook.SheetNames.find(n =>
+function _getSheetName(workbook) {
+  return workbook.SheetNames.find(n =>
     n.toLowerCase().includes('gantt') || n.toLowerCase().includes('carta')
   ) || workbook.SheetNames[0]
+}
+
+export function leerFilasGantt(workbook) {
+  const sheetName = _getSheetName(workbook)
+  const ws = workbook.Sheets[sheetName]
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
+  return rows.slice(0, 20)
+}
+
+export function parsearGanttDesdeHeader(workbook, headerRowIdx) {
+  const sheetName = _getSheetName(workbook)
   const ws = workbook.Sheets[sheetName]
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
 
-  // Detectar fila de encabezado dinámicamente (busca "cuadrilla" en las primeras 20 filas)
-  let headerRowIdx = -1
+  const headerRow = rows[headerRowIdx] || []
   let colCuadrilla = 0, colNumero = 2, colNombre = 3, colIni = 8, colFin = 9
 
-  for (let i = 0; i < Math.min(rows.length, 20); i++) {
-    const row = rows[i]
-    // La celda debe EMPEZAR con "cuadrilla" (no contenerla dentro de un título largo)
-    const idx = row.findIndex(c =>
-      typeof c === 'string' && c.toLowerCase().trim().startsWith('cuadrilla')
-    )
-    if (idx >= 0) {
-      headerRowIdx = i
-      colCuadrilla = idx
-      // Detectar las demás columnas por su texto de encabezado
-      row.forEach((cell, j) => {
-        if (cell == null) return
-        const s = String(cell).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-        if (/^n[°o]?$/.test(s.trim()) || s.includes('numero') || s.includes('item')) colNumero = j
-        if (s.includes('partida') || s.includes('nombre') || s.includes('actividad') || s.includes('descripcion')) colNombre = j
-        if ((s.includes('dia') || s.includes('día')) && (s.includes('ini') || s.includes('inicio'))) colIni = j
-        if ((s.includes('dia') || s.includes('día')) && s.includes('fin')) colFin = j
-      })
-      break
-    }
-  }
-
-  if (headerRowIdx === -1) {
-    const muestra = rows.slice(0, 5).map(r => String(r[0] ?? '')).join(' | ')
-    throw new Error(
-      `No se encontró la columna "Cuadrilla / Especialidad" en las primeras 20 filas.\n` +
-      `Columna A encontrada: ${muestra}`
-    )
-  }
+  headerRow.forEach((cell, j) => {
+    if (cell == null) return
+    const s = String(cell).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    if (/^cuadrilla/.test(s)) colCuadrilla = j
+    if (/^n[°o]?$/.test(s.trim()) || s.includes('numero') || s.includes('item')) colNumero = j
+    if (s.includes('partida') || s.includes('nombre') || s.includes('actividad') || s.includes('descripcion')) colNombre = j
+    if ((s.includes('dia') || s.includes('día') || s.includes('día')) && (s.includes('ini') || s.includes('inicio'))) colIni = j
+    if ((s.includes('dia') || s.includes('día') || s.includes('día')) && s.includes('fin')) colFin = j
+  })
 
   const items = []
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
@@ -80,7 +76,6 @@ export function parsearGantt(workbook) {
     const numero    = row[colNumero]
     const dia_ini   = row[colIni]
     const dia_fin   = row[colFin]
-
     const diaIniNum = Number(dia_ini)
     if (cuadrilla && nombre && !isNaN(diaIniNum) && diaIniNum > 0) {
       items.push({
@@ -94,16 +89,34 @@ export function parsearGantt(workbook) {
   }
 
   if (items.length === 0) {
-    throw new Error(
-      `Se encontró el encabezado en fila ${headerRowIdx + 1} pero no hay partidas con datos.\n` +
-      `Columnas usadas: cuadrilla=${colCuadrilla}, nombre=${colNombre}, día ini=${colIni}, día fin=${colFin}`
-    )
+    throw new Error(`No se encontraron partidas desde la fila ${headerRowIdx + 1}.`)
   }
-
   return items
 }
 
-async function leerWorkbook(file) {
+export function parsearGantt(workbook) {
+  const filas = leerFilasGantt(workbook)
+
+  let headerRowIdx = -1
+  for (let i = 0; i < filas.length; i++) {
+    const idx = filas[i].findIndex(c =>
+      typeof c === 'string' && c.toLowerCase().trim().startsWith('cuadrilla')
+    )
+    if (idx >= 0) { headerRowIdx = i; break }
+  }
+
+  if (headerRowIdx === -1) {
+    const muestra = filas.slice(0, 5).map(r => String(r[0] ?? '')).join(' | ')
+    throw new GanttFormatError(
+      `No se encontró la columna "Cuadrilla / Especialidad" en las primeras 20 filas.\nColumna A encontrada: ${muestra}`,
+      filas
+    )
+  }
+
+  return parsearGanttDesdeHeader(workbook, headerRowIdx)
+}
+
+export async function leerWorkbook(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = e => {
@@ -119,14 +132,17 @@ async function leerWorkbook(file) {
   })
 }
 
-export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFile, onProgreso) {
+export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFile, onProgreso, ganttPartidas = null) {
   onProgreso?.('Leyendo presupuesto...')
   const wbPresupuesto = await leerWorkbook(presupuestoFile)
   const presupuesto = parsearPresupuesto(wbPresupuesto)
 
-  onProgreso?.('Leyendo carta Gantt...')
-  const wbGantt = await leerWorkbook(ganttFile)
-  const gantt = parsearGantt(wbGantt)
+  let gantt = ganttPartidas
+  if (!gantt) {
+    onProgreso?.('Leyendo carta Gantt...')
+    const wbGantt = await leerWorkbook(ganttFile)
+    gantt = parsearGantt(wbGantt)
+  }
 
   const presupuestoNeto = [...presupuesto.values()].reduce((s, p) => s + p.subtotal, 0)
 
@@ -164,7 +180,6 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
 
   const { error: partidasError } = await supabase.from('partidas').insert(partidas)
   if (partidasError) {
-    // rollback: eliminar la obra orphan
     await supabase.from('obras').delete().eq('id', obraData.id)
     throw new Error(`Error importando partidas: ${partidasError.message}`)
   }
@@ -173,14 +188,17 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
   return obraId
 }
 
-export async function reimportarObra(obraId, presupuestoFile, ganttFile, preservarAvance, onProgreso) {
+export async function reimportarObra(obraId, presupuestoFile, ganttFile, preservarAvance, onProgreso, ganttPartidas = null) {
   onProgreso?.('Leyendo presupuesto...')
   const wbPresupuesto = await leerWorkbook(presupuestoFile)
   const presupuesto = parsearPresupuesto(wbPresupuesto)
 
-  onProgreso?.('Leyendo carta Gantt...')
-  const wbGantt = await leerWorkbook(ganttFile)
-  const gantt = parsearGantt(wbGantt)
+  let gantt = ganttPartidas
+  if (!gantt) {
+    onProgreso?.('Leyendo carta Gantt...')
+    const wbGantt = await leerWorkbook(ganttFile)
+    gantt = parsearGantt(wbGantt)
+  }
 
   const presupuestoNeto = [...presupuesto.values()].reduce((s, p) => s + p.subtotal, 0)
 
