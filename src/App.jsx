@@ -74,7 +74,7 @@ export default function App() {
         {tab === 'resumen' && <ResumenGeneral obra={obraActual} partidas={partidas} loading={partidasLoading} />}
         {tab === 'gantt' && <GanttView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
         {tab === 'financiero' && <FinancieroView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
-        {tab === 'chat' && <ChatAgente obra={obraActual} partidas={partidas} loading={partidasLoading} onAvanceUpdated={refetch} />}
+        {tab === 'chat' && <ChatAgente obra={obraActual} partidas={partidas} onAvanceUpdated={refetch} />}
         {tab === 'reporte' && <ReporteView obra={obraActual} partidas={partidas} />}
       </main>
     </div>
