@@ -11,13 +11,16 @@ import ProyectoSelector from './components/ProyectoSelector'
 import NuevaObra from './components/NuevaObra'
 import GestionProyectos from './components/GestionProyectos'
 
-const TABS = [
-  { id: 'resumen', label: '📊 Resumen' },
-  { id: 'gantt', label: '📅 Gantt' },
-  { id: 'financiero', label: '💰 Financiero' },
-  { id: 'chat', label: '💬 Chat' },
-  { id: 'reporte', label: '📄 Reporte' },
-  { id: 'proyectos', label: '⚙️ Proyectos' },
+const NAV_PRINCIPAL = [
+  { id: 'resumen',    label: 'Resumen' },
+  { id: 'gantt',      label: 'Gantt' },
+  { id: 'financiero', label: 'Financiero' },
+  { id: 'chat',       label: 'Chat IA' },
+  { id: 'reporte',    label: 'Reporte' },
+]
+
+const NAV_GESTION = [
+  { id: 'proyectos', label: 'Proyectos' },
 ]
 
 const isPreviewRoute = window.location.pathname === '/reporte-preview'
@@ -33,52 +36,71 @@ export default function App() {
 
   if (isPreviewRoute) return <ReportePDF />
 
-  if (obrasLoading) return <div className="loading">Cargando...</div>
+  if (obrasLoading) return <div className="loading">Cargando</div>
 
-  if (mostrarNueva) {
-    return (
-      <NuevaObra
-        onImportada={id => { setObraSeleccionadaId(id); setMostrarNueva(false) }}
-        onCancelar={() => setMostrarNueva(false)}
-      />
-    )
-  }
+  if (mostrarNueva) return (
+    <NuevaObra
+      onImportada={id => { setObraSeleccionadaId(id); setMostrarNueva(false) }}
+      onCancelar={() => setMostrarNueva(false)}
+    />
+  )
 
-  if (!obraActual) {
-    return (
-      <ProyectoSelector
-        obras={obras}
-        onSeleccionar={setObraSeleccionadaId}
-        onNueva={() => setMostrarNueva(true)}
-      />
-    )
-  }
+  if (!obraActual) return (
+    <ProyectoSelector
+      obras={obras}
+      onSeleccionar={setObraSeleccionadaId}
+      onNueva={() => setMostrarNueva(true)}
+    />
+  )
+
+  const NavItem = ({ id, label }) => (
+    <button
+      className={`nav-item${tab === id ? ' active' : ''}`}
+      onClick={() => setTab(id)}
+    >
+      <span className="nav-dot" />
+      {label}
+    </button>
+  )
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1
-          style={{ cursor: obras.length > 1 ? 'pointer' : 'default' }}
-          onClick={() => obras.length > 1 && setObraSeleccionadaId(null)}
-        >
-          🏗️ {obraActual.nombre}
-          {obras.length > 1 && <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 8 }}>▼ cambiar</span>}
-        </h1>
-        <nav className="tabs">
-          {TABS.map(t => (
-            <button key={t.id} className={`tab-btn ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
-        </nav>
-      </header>
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="sidebar-logo">Control Obra</div>
+          <div
+            className={`sidebar-obra${obras.length > 1 ? ' clickable' : ''}`}
+            onClick={() => obras.length > 1 && setObraSeleccionadaId(null)}
+            title={obras.length > 1 ? 'Cambiar proyecto' : undefined}
+          >
+            {obraActual.nombre}
+            {obras.length > 1 && (
+              <span style={{ color: 'var(--gold)', marginLeft: 5 }}>↓</span>
+            )}
+          </div>
+        </div>
+
+        <div className="nav-section-label">Obra</div>
+        {NAV_PRINCIPAL.map(n => <NavItem key={n.id} {...n} />)}
+
+        <div className="sidebar-divider" />
+
+        <div className="nav-section-label">Gestión</div>
+        {NAV_GESTION.map(n => <NavItem key={n.id} {...n} />)}
+
+        <div className="sidebar-footer">
+          Control Obra<br />
+          Supabase · Netlify
+        </div>
+      </aside>
+
       <main className="app-main">
-        {tab === 'resumen' && <ResumenGeneral obra={obraActual} partidas={partidas} loading={partidasLoading} />}
-        {tab === 'gantt' && <GanttView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
+        {tab === 'resumen'    && <ResumenGeneral obra={obraActual} partidas={partidas} loading={partidasLoading} />}
+        {tab === 'gantt'      && <GanttView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
         {tab === 'financiero' && <FinancieroView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
-        {tab === 'chat' && <ChatAgente obra={obraActual} partidas={partidas} onAvanceUpdated={refetch} />}
-        {tab === 'reporte' && <ReporteView obra={obraActual} partidas={partidas} />}
-        {tab === 'proyectos' && (
+        {tab === 'chat'       && <ChatAgente obra={obraActual} partidas={partidas} onAvanceUpdated={refetch} />}
+        {tab === 'reporte'    && <ReporteView obra={obraActual} partidas={partidas} />}
+        {tab === 'proyectos'  && (
           <GestionProyectos
             obras={obras}
             onCambiarObra={id => { setObraSeleccionadaId(id); setTab('resumen') }}
