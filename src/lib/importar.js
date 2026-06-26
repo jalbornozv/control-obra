@@ -126,3 +126,57 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
   onProgreso?.('¡Importación completa!')
   return obraId
 }
+
+export async function reimportarObra(obraId, presupuestoFile, ganttFile, preservarAvance, onProgreso) {
+  onProgreso?.('Leyendo presupuesto...')
+  const wbPresupuesto = await leerWorkbook(presupuestoFile)
+  const presupuesto = parsearPresupuesto(wbPresupuesto)
+
+  onProgreso?.('Leyendo carta Gantt...')
+  const wbGantt = await leerWorkbook(ganttFile)
+  const gantt = parsearGantt(wbGantt)
+
+  const presupuestoNeto = [...presupuesto.values()].reduce((s, p) => s + p.subtotal, 0)
+
+  let avancePrevio = {}
+  if (preservarAvance) {
+    onProgreso?.('Guardando avance actual...')
+    const { data } = await supabase.from('partidas').select('numero, avance_pct').eq('obra_id', obraId)
+    for (const p of data || []) avancePrevio[p.numero] = p.avance_pct
+  }
+
+  onProgreso?.('Eliminando partidas anteriores...')
+  const { error: delError } = await supabase.from('partidas').delete().eq('obra_id', obraId)
+  if (delError) throw new Error(`Error eliminando partidas: ${delError.message}`)
+
+  onProgreso?.('Actualizando datos de la obra...')
+  const totalDias = gantt.length > 0 ? Math.max(...gantt.map(g => g.dia_fin)) : 60
+  await supabase.from('obras').update({ presupuesto_neto: presupuestoNeto, total_dias: totalDias }).eq('id', obraId)
+
+  onProgreso?.(`Importando ${gantt.length} partidas...`)
+  const partidas = gantt.map(g => {
+    if (!presupuesto.has(g.numero)) {
+      console.warn(`reimportarObra: partida "${g.nombre}" (N° ${g.numero}) no encontrada en presupuesto, se importa sin monto`)
+    }
+    const ppto = presupuesto.get(g.numero) || {}
+    return {
+      obra_id: obraId,
+      cuadrilla: g.cuadrilla,
+      seccion: ppto.seccion || '',
+      numero: g.numero,
+      nombre: g.nombre,
+      unidad: ppto.unidad || '',
+      cantidad: ppto.cantidad || 0,
+      precio_unit: ppto.precio_unit || 0,
+      subtotal: ppto.subtotal || 0,
+      dia_ini: g.dia_ini,
+      dia_fin: g.dia_fin,
+      avance_pct: preservarAvance ? (avancePrevio[g.numero] ?? 0) : 0,
+    }
+  })
+
+  const { error: partidasError } = await supabase.from('partidas').insert(partidas)
+  if (partidasError) throw new Error(`Error importando partidas: ${partidasError.message}`)
+
+  onProgreso?.('¡Reimportación completa!')
+}

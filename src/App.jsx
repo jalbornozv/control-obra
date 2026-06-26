@@ -9,6 +9,7 @@ import ReporteView from './components/ReporteView'
 import ReportePDF from './components/ReportePDF'
 import ProyectoSelector from './components/ProyectoSelector'
 import NuevaObra from './components/NuevaObra'
+import GestionProyectos from './components/GestionProyectos'
 
 const TABS = [
   { id: 'resumen', label: '📊 Resumen' },
@@ -16,6 +17,7 @@ const TABS = [
   { id: 'financiero', label: '💰 Financiero' },
   { id: 'chat', label: '💬 Chat' },
   { id: 'reporte', label: '📄 Reporte' },
+  { id: 'proyectos', label: '⚙️ Proyectos' },
 ]
 
 const isPreviewRoute = window.location.pathname === '/reporte-preview'
@@ -25,7 +27,7 @@ export default function App() {
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState(null)
   const [mostrarNueva, setMostrarNueva] = useState(false)
 
-  const { obras, loading: obrasLoading } = useObras()
+  const { obras, loading: obrasLoading, refetch: refetchObras } = useObras()
   const obraActual = obras.find(o => o.id === obraSeleccionadaId) || (obras.length === 1 ? obras[0] : null)
   const { partidas, loading: partidasLoading, refetch } = usePartidas(obraActual?.id)
 
@@ -76,6 +78,13 @@ export default function App() {
         {tab === 'financiero' && <FinancieroView obra={obraActual} partidas={partidas} loading={partidasLoading} />}
         {tab === 'chat' && <ChatAgente obra={obraActual} partidas={partidas} onAvanceUpdated={refetch} />}
         {tab === 'reporte' && <ReporteView obra={obraActual} partidas={partidas} />}
+        {tab === 'proyectos' && (
+          <GestionProyectos
+            obras={obras}
+            onCambiarObra={id => { setObraSeleccionadaId(id); setTab('resumen') }}
+            onObrasActualizadas={id => { refetchObras(); setObraSeleccionadaId(id); setTab('resumen') }}
+          />
+        )}
       </main>
     </div>
   )
