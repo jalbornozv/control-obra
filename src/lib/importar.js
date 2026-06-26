@@ -96,6 +96,9 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
 
   onProgreso?.(`Importando ${gantt.length} partidas...`)
   const partidas = gantt.map(g => {
+    if (!presupuesto.has(g.numero)) {
+      console.warn(`importarObra: partida "${g.nombre}" (N° ${g.numero}) no encontrada en presupuesto, se importa sin monto`)
+    }
     const ppto = presupuesto.get(g.numero) || {}
     return {
       obra_id: obraId,
