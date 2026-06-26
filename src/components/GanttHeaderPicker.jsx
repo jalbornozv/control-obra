@@ -59,7 +59,7 @@ export default function GanttHeaderPicker({ filas, workbook, onConfirmar, onCanc
                 onClick={() => handleSeleccionarFila(i)}
                 style={{
                   cursor: 'pointer',
-                  background: filaSeleccionada === i ? 'rgba(196,158,68,0.12)' : 'transparent',
+                  background: filaSeleccionada === i ? 'var(--gold-bg)' : 'transparent',
                   outline: filaSeleccionada === i ? '1px solid var(--gold-bdr)' : '1px solid transparent',
                 }}
               >
@@ -146,7 +146,7 @@ export default function GanttHeaderPicker({ filas, workbook, onConfirmar, onCanc
           style={{
             padding: '8px 18px', borderRadius: 7, border: 'none',
             background: puedeConfirmar ? 'var(--gold)' : 'var(--s4)',
-            color: puedeConfirmar ? '#000' : 'var(--text)',
+            color: puedeConfirmar ? 'var(--bg)' : 'var(--text)',
             cursor: puedeConfirmar ? 'pointer' : 'default',
             fontWeight: 600, fontSize: '0.84rem',
           }}
