@@ -112,6 +112,7 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
           try {
             await ejecutarActualizacion(toolUse, diaActual)
             resultados.push(`✅ ${nombre} → ${toolUse.input.avance_pct}%`)
+            onAvanceUpdated?.()
           } catch (e) {
             resultados.push(`❌ Error al actualizar ${nombre}: ${e.message}`)
             huboError = true
@@ -120,7 +121,6 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
 
         const confirmacion = resultados.join('\n')
         setMensajes(prev => [...prev, { role: 'assistant', content: confirmacion }])
-        if (!huboError) onAvanceUpdated?.()
 
       } else {
         const textBlock = response.content.find(b => b.type === 'text')
