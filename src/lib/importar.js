@@ -31,29 +31,75 @@ export function parsearPresupuesto(workbook) {
 }
 
 export function parsearGantt(workbook) {
-  const ws = workbook.Sheets['Carta Gantt'] || workbook.Sheets[workbook.SheetNames[0]]
+  // Intenta hoja 'Carta Gantt' primero, si no la primera hoja disponible
+  const sheetName = workbook.SheetNames.find(n =>
+    n.toLowerCase().includes('gantt') || n.toLowerCase().includes('carta')
+  ) || workbook.SheetNames[0]
+  const ws = workbook.Sheets[sheetName]
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
-  const items = []
-  let encabezadoVisto = false
 
-  for (const row of rows) {
-    const [cuadrilla, , numero, nombre, , , , , dia_ini, dia_fin] = row
-    if (!encabezadoVisto) {
-      if (cuadrilla === 'Cuadrilla / Especialidad') encabezadoVisto = true
-      continue
+  // Detectar fila de encabezado dinámicamente (busca "cuadrilla" en las primeras 20 filas)
+  let headerRowIdx = -1
+  let colCuadrilla = 0, colNumero = 2, colNombre = 3, colIni = 8, colFin = 9
+
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const row = rows[i]
+    // La celda debe EMPEZAR con "cuadrilla" (no contenerla dentro de un título largo)
+    const idx = row.findIndex(c =>
+      typeof c === 'string' && c.toLowerCase().trim().startsWith('cuadrilla')
+    )
+    if (idx >= 0) {
+      headerRowIdx = i
+      colCuadrilla = idx
+      // Detectar las demás columnas por su texto de encabezado
+      row.forEach((cell, j) => {
+        if (cell == null) return
+        const s = String(cell).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        if (/^n[°o]?$/.test(s.trim()) || s.includes('numero') || s.includes('item')) colNumero = j
+        if (s.includes('partida') || s.includes('nombre') || s.includes('actividad') || s.includes('descripcion')) colNombre = j
+        if ((s.includes('dia') || s.includes('día')) && (s.includes('ini') || s.includes('inicio'))) colIni = j
+        if ((s.includes('dia') || s.includes('día')) && s.includes('fin')) colFin = j
+      })
+      break
     }
-    if (cuadrilla && nombre && dia_ini) {
+  }
+
+  if (headerRowIdx === -1) {
+    const muestra = rows.slice(0, 5).map(r => String(r[0] ?? '')).join(' | ')
+    throw new Error(
+      `No se encontró la columna "Cuadrilla / Especialidad" en las primeras 20 filas.\n` +
+      `Columna A encontrada: ${muestra}`
+    )
+  }
+
+  const items = []
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i]
+    const cuadrilla = row[colCuadrilla]
+    const nombre    = row[colNombre]
+    const numero    = row[colNumero]
+    const dia_ini   = row[colIni]
+    const dia_fin   = row[colFin]
+
+    const diaIniNum = Number(dia_ini)
+    if (cuadrilla && nombre && !isNaN(diaIniNum) && diaIniNum > 0) {
       items.push({
         cuadrilla: String(cuadrilla),
-        numero: numero != null ? String(numero) : '',
-        nombre: String(nombre),
-        dia_ini: Number(dia_ini),
-        dia_fin: dia_fin != null ? Number(dia_fin) : Number(dia_ini),
+        numero:    numero != null ? String(numero) : '',
+        nombre:    String(nombre),
+        dia_ini:   diaIniNum,
+        dia_fin:   dia_fin != null && !isNaN(Number(dia_fin)) ? Number(dia_fin) : diaIniNum,
       })
     }
   }
 
-  if (items.length === 0) throw new Error('El archivo Gantt no tiene el formato esperado.')
+  if (items.length === 0) {
+    throw new Error(
+      `Se encontró el encabezado en fila ${headerRowIdx + 1} pero no hay partidas con datos.\n` +
+      `Columnas usadas: cuadrilla=${colCuadrilla}, nombre=${colNombre}, día ini=${colIni}, día fin=${colFin}`
+    )
+  }
+
   return items
 }
 
