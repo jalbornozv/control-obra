@@ -31,7 +31,7 @@ export default function ResumenGeneral({ obra, partidas }) {
       semaforo: calcSemaforo(p.avance_pct, calcAvanceEsperado(diaActual, p.dia_ini, p.dia_fin)),
     }))
     .filter(p => p.semaforo === 'rojo')
-    .sort((a, b) => (a.esperado - a.avance_pct) - (b.esperado - b.avance_pct))
+    .sort((a, b) => (b.esperado - b.avance_pct) - (a.esperado - a.avance_pct))
     .slice(0, 5)
 
   return (

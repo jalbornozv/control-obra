@@ -81,7 +81,7 @@ export default function GanttView({ obra, partidas }) {
                         <div style={{
                           position: 'absolute',
                           left: `${((p.dia_ini - 1) / totalDias) * 100}%`,
-                          width: `${((p.dia_fin - p.dia_ini + 1) / totalDias) * 100 * (p.avance_pct / 100)}%`,
+                          width: `${((p.dia_fin - p.dia_ini + 1) / totalDias) * 100 * (Math.min(p.avance_pct, 100) / 100)}%`,
                           height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s',
                         }} />
                         {/* Línea día actual */}

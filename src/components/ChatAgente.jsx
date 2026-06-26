@@ -2,6 +2,11 @@ import { useState, useRef, useEffect } from 'react'
 import Anthropic from '@anthropic-ai/sdk'
 import { formatCLP, calcDiaActual } from '../lib/calculations'
 
+const anthropicClient = new Anthropic({
+  apiKey: import.meta.env.VITE_CLAUDE_API_KEY,
+  dangerouslyAllowBrowser: true,
+})
+
 function buildContexto(obra, partidas) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
   const resumen = partidas.map(p =>
@@ -40,12 +45,7 @@ export default function ChatAgente({ obra, partidas }) {
     setCargando(true)
 
     try {
-      const client = new Anthropic({
-        apiKey: import.meta.env.VITE_CLAUDE_API_KEY,
-        dangerouslyAllowBrowser: true,
-      })
-
-      const response = await client.messages.create({
+      const response = await anthropicClient.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system: buildContexto(obra, partidas),
