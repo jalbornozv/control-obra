@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { parsearGanttDesdeHeader } from '../lib/importar'
 
 function colLetra(j) {
-  return String.fromCharCode(65 + j)
+  let s = ''
+  let n = j + 1
+  while (n > 0) {
+    s = String.fromCharCode(64 + (n % 26 || 26)) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
 }
 
 export default function GanttHeaderPicker({ filas, workbook, onConfirmar, onCancelar }) {
@@ -53,7 +59,7 @@ export default function GanttHeaderPicker({ filas, workbook, onConfirmar, onCanc
       <div style={{ overflowX: 'auto', marginBottom: 14 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
           <tbody>
-            {filas.slice(0, 15).map((fila, i) => (
+            {filas.slice(0, 20).map((fila, i) => (
               <tr
                 key={i}
                 onClick={() => handleSeleccionarFila(i)}
