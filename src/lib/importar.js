@@ -9,6 +9,31 @@ export class GanttFormatError extends Error {
   }
 }
 
+const _norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+function _esFilaGG(label) {
+  return (label.includes('gasto') && (label.includes('general') || label.includes('grales') || label.includes('grls'))) ||
+    /\bgg\b/.test(label) || /\bg\.g\.\b/.test(label)
+}
+
+function _esFilaUtil(label) {
+  return label.includes('utilidad') || /\butil\b/.test(label)
+}
+
+function _extraerPct(row, cd) {
+  const nums = row.filter(c => typeof c === 'number')
+  // 1. Porcentaje decimal (ej: 0.10 → 10%)
+  const dec = nums.find(n => n > 0 && n < 1)
+  if (dec != null) return Math.round(dec * 1000) / 10
+  // 2. Porcentaje directo (ej: 10 → 10%)
+  const pct = nums.find(n => n >= 1 && n <= 100)
+  if (pct != null) return Math.round(pct * 10) / 10
+  // 3. Monto CLP → calcular % sobre CD
+  const monto = [...nums].reverse().find(n => n > 100000)
+  if (monto != null && cd > 0) return Math.round(monto / cd * 1000) / 10
+  return null
+}
+
 export function parsearPresupuesto(workbook) {
   const ws = workbook.Sheets[workbook.SheetNames[0]]
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
@@ -34,7 +59,27 @@ export function parsearPresupuesto(workbook) {
   }
 
   if (items.size === 0) throw new Error('El archivo no tiene el formato esperado.')
-  return items
+
+  const cd = [...items.values()].reduce((s, p) => s + p.subtotal, 0)
+  let gg_pct = null
+  let util_pct = null
+
+  // Escanea TODAS las filas buscando GG/Utilidades (no solo extraRows —
+  // por si la fila tiene número en col A y pasó como partida)
+  for (const row of rows) {
+    const label = row.filter(c => c != null).map(_norm).join(' ')
+    if (_esFilaGG(label) && gg_pct == null) {
+      const pct = _extraerPct(row, cd)
+      if (pct != null && pct > 0 && pct < 50) gg_pct = pct
+    }
+    if (_esFilaUtil(label) && util_pct == null) {
+      const pct = _extraerPct(row, cd)
+      if (pct != null && pct > 0 && pct < 50) util_pct = pct
+    }
+  }
+
+  console.log('[presupuesto] CD:', cd, '| GG:', gg_pct, '% | Util:', util_pct, '%')
+  return { items, gg_pct, util_pct }
 }
 
 function _getSheetName(workbook) {
@@ -135,7 +180,7 @@ export async function leerWorkbook(file) {
 export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFile, onProgreso, ganttPartidas = null) {
   onProgreso?.('Leyendo presupuesto...')
   const wbPresupuesto = await leerWorkbook(presupuestoFile)
-  const presupuesto = parsearPresupuesto(wbPresupuesto)
+  const { items: presupuesto, gg_pct, util_pct } = parsearPresupuesto(wbPresupuesto)
 
   let gantt = ganttPartidas
   if (!gantt) {
@@ -149,7 +194,7 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
   onProgreso?.('Creando obra en base de datos...')
   const { data: obraData, error: obraError } = await supabase
     .from('obras')
-    .insert({ nombre, fecha_inicio: fechaInicio, total_dias: gantt.length > 0 ? Math.max(...gantt.map(g => g.dia_fin)) : 60, presupuesto_neto: presupuestoNeto })
+    .insert({ nombre, fecha_inicio: fechaInicio, total_dias: gantt.length > 0 ? Math.max(...gantt.map(g => g.dia_fin)) : 60, presupuesto_neto: presupuestoNeto, gg_pct, util_pct })
     .select()
     .single()
 
@@ -191,7 +236,7 @@ export async function importarObra(nombre, fechaInicio, presupuestoFile, ganttFi
 export async function reimportarObra(obraId, presupuestoFile, ganttFile, preservarAvance, onProgreso, ganttPartidas = null) {
   onProgreso?.('Leyendo presupuesto...')
   const wbPresupuesto = await leerWorkbook(presupuestoFile)
-  const presupuesto = parsearPresupuesto(wbPresupuesto)
+  const { items: presupuesto, gg_pct, util_pct } = parsearPresupuesto(wbPresupuesto)
 
   let gantt = ganttPartidas
   if (!gantt) {
@@ -215,7 +260,7 @@ export async function reimportarObra(obraId, presupuestoFile, ganttFile, preserv
 
   onProgreso?.('Actualizando datos de la obra...')
   const totalDias = gantt.length > 0 ? Math.max(...gantt.map(g => g.dia_fin)) : 60
-  await supabase.from('obras').update({ presupuesto_neto: presupuestoNeto, total_dias: totalDias }).eq('id', obraId)
+  await supabase.from('obras').update({ presupuesto_neto: presupuestoNeto, total_dias: totalDias, gg_pct, util_pct }).eq('id', obraId)
 
   onProgreso?.(`Importando ${gantt.length} partidas...`)
   const partidas = gantt.map(g => {

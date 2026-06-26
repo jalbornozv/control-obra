@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import Markdown from 'react-markdown'
 import Anthropic from '@anthropic-ai/sdk'
 import { formatCLP, calcDiaActual } from '../lib/calculations'
 import { supabase } from '../lib/supabase'
@@ -39,9 +40,16 @@ function buildContexto(obra, partidas) {
     `- [ID:${p.id}] ${p.nombre} (${p.cuadrilla?.split('.')[0]}): avance ${(p.avance_pct || 0).toFixed(0)}%, días ${p.dia_ini}-${p.dia_fin}, subtotal ${formatCLP(p.subtotal || 0)}`
   ).join('\n')
 
+  const gg_pct   = obra.gg_pct  ?? 0
+  const util_pct = obra.util_pct ?? 0
+  const factor   = 1 + gg_pct / 100 + util_pct / 100
+  const presupTotal = obra.presupuesto_neto * factor
+
   return `Eres el asistente de gestión de la obra "${obra.nombre}".
 Hoy es el día ${diaActual} de ${obra.total_dias} días totales.
-Presupuesto neto total: ${formatCLP(obra.presupuesto_neto)}.
+Costo directo (partidas): ${formatCLP(obra.presupuesto_neto)}.
+${gg_pct > 0 || util_pct > 0 ? `Gastos Generales: ${gg_pct}% | Utilidades: ${util_pct}% | Presupuesto total: ${formatCLP(presupTotal)}.
+Al proyectar estado de pago o avance financiero, usa el presupuesto total (que incluye GG y utilidades de forma proporcional al avance del costo directo).` : ''}
 
 Estado actual de partidas (usa los IDs exactos para actualizar):
 ${resumen}
@@ -49,7 +57,8 @@ ${resumen}
 Tienes acceso a la tool "actualizar_partida". Úsala cuando el usuario reporte avance o termine una partida.
 Si el usuario hace una pregunta (flujo de caja, proyecciones, estado), responde sin usar la tool.
 Si hay ambigüedad sobre qué partida actualizar, pregunta antes de usar la tool.
-Responde siempre en español, de forma concisa y práctica.`
+Responde siempre en español, de forma concisa y práctica.
+Usa formato markdown en tus respuestas: **negrita** para valores clave, listas con - para enumerar partidas o puntos, y encabezados ## solo si la respuesta es larga y necesita secciones.`
 }
 
 async function ejecutarActualizacion(tool_use, diaActual) {
@@ -74,11 +83,12 @@ async function ejecutarActualizacion(tool_use, diaActual) {
 export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
   const [mensajes, setMensajes] = useState([
-    { role: 'assistant', content: `Hola! Soy tu asistente de obra. Estamos en el día ${diaActual} de ${obra.total_dias}. Puedo responder preguntas y también actualizar el avance de partidas si me dices cómo va la obra.` }
+    { role: 'assistant', content: `Hola. Estamos en el día ${diaActual} de ${obra.total_dias}. Puedo responder preguntas sobre la obra y actualizar el avance de partidas — dime cómo va el día.` }
   ])
   const [input, setInput] = useState('')
   const [cargando, setCargando] = useState(false)
   const [grabando, setGrabando] = useState(false)
+  const [inputFocus, setInputFocus] = useState(false)
   const bottomRef = useRef(null)
   const recognitionRef = useRef(null)
 
@@ -111,15 +121,14 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
           const nombre = partida?.nombre || toolUse.input.partida_id
           try {
             await ejecutarActualizacion(toolUse, diaActual)
-            resultados.push(`✅ Actualizado: ${nombre} → ${toolUse.input.avance_pct}%`)
+            resultados.push(`✓ ${nombre} → ${toolUse.input.avance_pct}%`)
             onAvanceUpdated?.()
           } catch (e) {
-            resultados.push(`❌ Error al actualizar ${nombre}: ${e.message}`)
+            resultados.push(`✗ Error al actualizar ${nombre}: ${e.message}`)
           }
         }
 
-        const confirmacion = resultados.join('\n')
-        setMensajes(prev => [...prev, { role: 'assistant', content: confirmacion }])
+        setMensajes(prev => [...prev, { role: 'assistant', content: resultados.join('\n') }])
 
       } else {
         const textBlock = response.content.find(b => b.type === 'text')
@@ -127,7 +136,7 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
       }
 
     } catch (e) {
-      setMensajes(prev => [...prev, { role: 'assistant', content: `Error al conectar con Claude: ${e.message}` }])
+      setMensajes(prev => [...prev, { role: 'assistant', content: `Error al conectar: ${e.message}` }])
     }
     setCargando(false)
   }
@@ -158,65 +167,108 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
   }
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)', minHeight: 400 }}>
-      <h2 style={{ marginBottom: 16 }}>💬 Chat con Agente de Obra</h2>
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)', minHeight: 400, padding: '20px 24px' }}>
 
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <span className="chat-status-dot" />
+        <h2 style={{ fontFamily: 'var(--disp)', fontSize: '1.6rem', letterSpacing: '0.06em', color: 'var(--text-h)', margin: 0, lineHeight: 1 }}>
+          AGENTE DE OBRA
+        </h2>
+        <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          DÍA {diaActual} / {obra.total_dias}
+        </span>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, paddingRight: 4 }}>
         {mensajes.map((m, i) => (
-          <div key={i} style={{
-            alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-            maxWidth: '80%',
-            background: m.role === 'user' ? '#3b82f6' : '#334155',
-            padding: '10px 14px',
-            borderRadius: m.role === 'user' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
-            fontSize: '0.9rem',
-            lineHeight: 1.5,
-            whiteSpace: 'pre-wrap',
-          }}>
-            {m.content}
-          </div>
+          m.role === 'user'
+            ? (
+              <div key={i} style={{
+                alignSelf: 'flex-end',
+                maxWidth: '75%',
+                background: 'var(--gold-bg)',
+                border: '1px solid var(--gold-bdr)',
+                padding: '10px 14px',
+                borderRadius: '12px 12px 4px 12px',
+                fontSize: '0.875rem',
+                lineHeight: 1.6,
+                color: 'var(--text-h)',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {m.content}
+              </div>
+            ) : (
+              <div key={i} style={{
+                alignSelf: 'flex-start',
+                maxWidth: '82%',
+                background: 'var(--s3)',
+                borderLeft: '2px solid var(--gold)',
+                padding: '10px 14px 10px 16px',
+                borderRadius: '0 10px 10px 0',
+              }}>
+                <Markdown className="chat-md">{m.content}</Markdown>
+              </div>
+            )
         ))}
+
         {cargando && (
-          <div style={{ alignSelf: 'flex-start', background: '#334155', padding: '10px 14px', borderRadius: '12px 12px 12px 4px', color: '#94a3b8', fontSize: '0.9rem' }}>
-            Pensando...
+          <div style={{ alignSelf: 'flex-start', background: 'var(--s3)', borderLeft: '2px solid var(--gold-bdr)', padding: '12px 18px', borderRadius: '0 10px 10px 0', display: 'flex', gap: 5, alignItems: 'center' }}>
+            <span className="chat-dot" style={{ animationDelay: '0s' }} />
+            <span className="chat-dot" style={{ animationDelay: '0.2s' }} />
+            <span className="chat-dot" style={{ animationDelay: '0.4s' }} />
           </div>
         )}
+
         <div ref={bottomRef} />
       </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      {/* Input bar */}
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         <button
           onClick={toggleVoz}
-          style={{
-            padding: '10px 14px', borderRadius: 8, border: '1px solid',
-            borderColor: grabando ? '#ef4444' : '#475569',
-            background: grabando ? '#ef444422' : 'transparent',
-            color: grabando ? '#ef4444' : '#94a3b8',
-            cursor: 'pointer', fontSize: '1.1rem', flexShrink: 0,
-          }}
           title={grabando ? 'Detener grabación' : 'Hablar'}
+          style={{
+            padding: '10px 13px',
+            borderRadius: 'var(--r)',
+            border: '1px solid',
+            borderColor: grabando ? 'var(--rojo)' : 'var(--border-h)',
+            background: grabando ? 'var(--rojo-bg)' : 'transparent',
+            color: grabando ? 'var(--rojo)' : 'var(--text)',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
         >
           {grabando ? '⏹' : '🎙️'}
         </button>
+
         <input
+          className="chat-input"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && enviar(input)}
           placeholder="Ej: Terminé demolición de pisos, tabiquería va al 60%"
-          style={{
-            flex: 1, padding: '10px 14px', borderRadius: 8,
-            background: '#0f172a', border: '1px solid #334155',
-            color: '#f1f5f9', fontSize: '0.9rem', outline: 'none',
-          }}
         />
+
         <button
           onClick={() => enviar(input)}
           disabled={cargando || !input.trim()}
           style={{
-            padding: '10px 16px', borderRadius: 8, border: 'none',
-            background: cargando || !input.trim() ? '#334155' : '#3b82f6',
-            color: 'white', cursor: cargando ? 'default' : 'pointer',
-            fontSize: '0.9rem', fontWeight: 600, flexShrink: 0,
+            padding: '10px 18px',
+            borderRadius: 'var(--r)',
+            border: 'none',
+            background: cargando || !input.trim() ? 'var(--s3)' : 'var(--gold)',
+            color: cargando || !input.trim() ? 'var(--text)' : '#07080F',
+            cursor: cargando || !input.trim() ? 'default' : 'pointer',
+            fontFamily: 'var(--font)',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            flexShrink: 0,
+            transition: 'all 0.15s',
           }}
         >
           Enviar

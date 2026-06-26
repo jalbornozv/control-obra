@@ -17,20 +17,27 @@ function generarCurvaS(partidas, totalDias) {
 
 export default function FinancieroView({ obra, partidas }) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
-  const { total: totalValorizado } = calcValorizacion(partidas)
-  const presupuestoNeto = obra.presupuesto_neto
-  const pctValorizado = presupuestoNeto > 0 ? (totalValorizado / presupuestoNeto) * 100 : 0
+  const { total: valorizadoCD } = calcValorizacion(partidas)
 
-  // Estado de pago: 85% de lo valorizado (margen de retención típico)
-  const estadoPago = totalValorizado * 0.85
+  const gg_pct  = obra.gg_pct  ?? 0
+  const util_pct = obra.util_pct ?? 0
+  const factor  = 1 + gg_pct / 100 + util_pct / 100
+
+  const cd           = obra.presupuesto_neto
+  const presupTotal  = cd * factor
+  const valorizadoTotal = valorizadoCD * factor
+  const estadoPago   = valorizadoTotal * 0.85
+  const pctValorizado = presupTotal > 0 ? (valorizadoTotal / presupTotal) * 100 : 0
+
+  const tieneGGUtil = gg_pct > 0 || util_pct > 0
 
   const curvaS = generarCurvaS(partidas, obra.total_dias)
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
     return (
-      <div style={{ background: '#1e293b', border: '1px solid #334155', padding: 12, borderRadius: 8, fontSize: '0.85rem' }}>
-        <div style={{ color: '#94a3b8', marginBottom: 6 }}>Día {label}</div>
+      <div style={{ background: 'var(--s2)', border: '1px solid var(--border)', padding: 12, borderRadius: 8, fontSize: '0.85rem' }}>
+        <div style={{ color: 'var(--text)', marginBottom: 6, fontFamily: 'var(--mono)', fontSize: '0.7rem' }}>DÍA {label}</div>
         {payload.map(p => (
           <div key={p.name} style={{ color: p.color }}>{p.name}: {formatCLP(p.value)}</div>
         ))}
@@ -43,8 +50,8 @@ export default function FinancieroView({ obra, partidas }) {
       {/* KPIs financieros */}
       <div className="grid-4">
         <div className="card">
-          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCLP(totalValorizado)}</div>
-          <div className="stat-label">Avance valorizado</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCLP(valorizadoTotal)}</div>
+          <div className="stat-label">Avance valorizado{tieneGGUtil ? ' (c/ GG+Util)' : ''}</div>
         </div>
         <div className="card">
           <div className="stat-value" style={{ fontSize: '1.4rem' }}>{pctValorizado.toFixed(1)}%</div>
@@ -55,30 +62,59 @@ export default function FinancieroView({ obra, partidas }) {
           <div className="stat-label">Estado de pago estimado (85%)</div>
         </div>
         <div className="card">
-          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCLP(presupuestoNeto)}</div>
-          <div className="stat-label">Presupuesto neto total</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCLP(presupTotal)}</div>
+          <div className="stat-label">Presupuesto total{tieneGGUtil ? ` (CD + GG ${gg_pct}% + Util ${util_pct}%)` : ''}</div>
         </div>
       </div>
+
+      {/* Desglose presupuesto si tiene GG/Util */}
+      {tieneGGUtil && (
+        <div className="card">
+          <h2 style={{ marginBottom: 14 }}>Desglose Presupuesto</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {[
+              { label: 'Costo Directo (partidas)', monto: cd, sub: true },
+              { label: `Gastos Generales (${gg_pct}%)`, monto: cd * gg_pct / 100, sub: true },
+              { label: `Utilidades (${util_pct}%)`, monto: cd * util_pct / 100, sub: true },
+              { label: 'TOTAL', monto: presupTotal, sub: false },
+            ].map(({ label, monto, sub }) => (
+              <div key={label} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '9px 0',
+                borderBottom: sub ? '1px solid var(--border)' : 'none',
+                borderTop: !sub ? '1px solid var(--gold-bdr)' : 'none',
+              }}>
+                <span style={{ fontFamily: sub ? 'var(--font)' : 'var(--disp)', fontSize: sub ? '0.85rem' : '1.1rem', color: sub ? 'var(--text-m)' : 'var(--text-h)', letterSpacing: sub ? 0 : '0.05em' }}>
+                  {label}
+                </span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: sub ? '0.85rem' : '0.95rem', color: sub ? 'var(--text-m)' : 'var(--gold)' }}>
+                  {formatCLP(monto)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Curva S */}
       <div className="card">
         <h2>Curva S — Avance Financiero Planificado</h2>
-        <div style={{ marginBottom: 8, fontSize: '0.85rem', color: '#64748b' }}>
+        <div style={{ marginBottom: 8, fontSize: '0.85rem', color: 'var(--text)' }}>
           Monto acumulado planificado por día de obra. Línea naranja = día actual.
         </div>
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={curvaS} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id="colorPlan" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                <stop offset="5%" stopColor="var(--gold)" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="var(--gold)" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="dia" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} label={{ value: 'Día', position: 'insideBottomRight', fill: '#64748b', fontSize: 11 }} />
-            <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={v => `$${(v/1000000).toFixed(0)}M`} />
+            <XAxis dataKey="dia" stroke="var(--border-h)" tick={{ fill: 'var(--text)', fontSize: 11 }} label={{ value: 'Día', position: 'insideBottomRight', fill: 'var(--text)', fontSize: 11 }} />
+            <YAxis stroke="var(--border-h)" tick={{ fill: 'var(--text)', fontSize: 10 }} tickFormatter={v => `$${(v/1000000).toFixed(0)}M`} />
             <Tooltip content={<CustomTooltip />} />
-            <ReferenceLine x={Math.min(diaActual, obra.total_dias)} stroke="#f59e0b" strokeDasharray="4 2" label={{ value: `Día ${diaActual}`, fill: '#f59e0b', fontSize: 11 }} />
-            <Area type="monotone" dataKey="planificado" name="Planificado" stroke="#3b82f6" fill="url(#colorPlan)" strokeWidth={2} dot={false} />
+            <ReferenceLine x={Math.min(diaActual, obra.total_dias)} stroke="var(--amarillo)" strokeDasharray="4 2" label={{ value: `Día ${diaActual}`, fill: 'var(--amarillo)', fontSize: 11 }} />
+            <Area type="monotone" dataKey="planificado" name="Planificado" stroke="var(--gold)" fill="url(#colorPlan)" strokeWidth={2} dot={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -93,9 +129,9 @@ export default function FinancieroView({ obra, partidas }) {
             .slice(0, 10)
             .map(p => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.85rem' }}>
-                <div style={{ flex: 1, color: '#f1f5f9' }}>{p.nombre}</div>
-                <div style={{ color: '#94a3b8', minWidth: 90, textAlign: 'right' }}>{formatCLP(p.monto)}</div>
-                <div style={{ color: '#64748b', minWidth: 45, textAlign: 'right' }}>{(p.avance_pct || 0).toFixed(0)}%</div>
+                <div style={{ flex: 1, color: 'var(--text-h)' }}>{p.nombre}</div>
+                <div style={{ color: 'var(--text-m)', minWidth: 90, textAlign: 'right', fontFamily: 'var(--mono)' }}>{formatCLP(p.monto)}</div>
+                <div style={{ color: 'var(--text)', minWidth: 45, textAlign: 'right', fontFamily: 'var(--mono)' }}>{(p.avance_pct || 0).toFixed(0)}%</div>
               </div>
             ))
           }
