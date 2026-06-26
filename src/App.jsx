@@ -16,7 +16,7 @@ const TABS = [
 export default function App() {
   const [tab, setTab] = useState('resumen')
   const { obra, loading: obraLoading } = useObra()
-  const { partidas, loading: partidasLoading } = usePartidas(obra?.id)
+  const { partidas, loading: partidasLoading, refetch } = usePartidas(obra?.id)
 
   if (obraLoading) return <div className="loading">Cargando obra...</div>
   if (!obra) return <div className="loading">No se encontró ninguna obra.</div>
@@ -43,7 +43,7 @@ export default function App() {
         {tab === 'resumen' && <ResumenGeneral {...props} />}
         {tab === 'gantt' && <GanttView {...props} />}
         {tab === 'financiero' && <FinancieroView {...props} />}
-        {tab === 'chat' && <ChatAgente {...props} />}
+        {tab === 'chat' && <ChatAgente {...props} onAvanceUpdated={refetch} />}
       </main>
     </div>
   )

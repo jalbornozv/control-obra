@@ -25,5 +25,5 @@ export function usePartidas(obraId) {
     return () => clearInterval(interval)
   }, [fetchPartidas])
 
-  return { partidas, loading, error }
+  return { partidas, loading, error, refetch: fetchPartidas }
 }
