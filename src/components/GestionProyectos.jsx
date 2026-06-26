@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react'
-import { reimportarObra, importarObra } from '../lib/importar'
+import { useState } from 'react'
+import { reimportarObra, importarObra, leerWorkbook, parsearGantt, GanttFormatError } from '../lib/importar'
 import { calcDiaActual } from '../lib/calculations'
+import GanttHeaderPicker from './GanttHeaderPicker'
 
 const CONFIRM_STYLES = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
@@ -71,15 +72,44 @@ function FormNuevaObra({ onImportada, onCancelar }) {
   const [fecha, setFecha] = useState('')
   const [presupuestoFile, setPresupuestoFile] = useState(null)
   const [ganttFile, setGanttFile] = useState(null)
+  const [ganttWorkbook, setGanttWorkbook] = useState(null)
+  const [ganttEstado, setGanttEstado] = useState('idle')
+  const [ganttPartidas, setGanttPartidas] = useState(null)
+  const [ganttFilas, setGanttFilas] = useState(null)
   const [progreso, setProgreso] = useState('')
   const [error, setError] = useState('')
   const [importando, setImportando] = useState(false)
 
+  async function handleGanttChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setGanttFile(file)
+    setGanttEstado('procesando')
+    setError('')
+    setGanttPartidas(null)
+    setGanttFilas(null)
+    try {
+      const wb = await leerWorkbook(file)
+      setGanttWorkbook(wb)
+      const partidas = parsearGantt(wb)
+      setGanttPartidas(partidas)
+      setGanttEstado('auto-ok')
+    } catch (e) {
+      if (e instanceof GanttFormatError) {
+        setGanttFilas(e.filas)
+        setGanttEstado('necesita-config')
+      } else {
+        setError(e.message)
+        setGanttEstado('idle')
+      }
+    }
+  }
+
   async function handleImportar() {
-    if (!nombre || !fecha || !presupuestoFile || !ganttFile) { setError('Completa todos los campos.'); return }
+    if (!nombre || !fecha || !presupuestoFile || !ganttPartidas) { setError('Completa todos los campos.'); return }
     setError(''); setImportando(true)
     try {
-      const id = await importarObra(nombre, fecha, presupuestoFile, ganttFile, setProgreso)
+      const id = await importarObra(nombre, fecha, presupuestoFile, ganttFile, setProgreso, ganttPartidas)
       onImportada(id)
     } catch (e) {
       setError(e.message)
@@ -88,6 +118,7 @@ function FormNuevaObra({ onImportada, onCancelar }) {
     }
   }
 
+  const puedeImportar = !importando && ganttEstado !== 'necesita-config' && ganttEstado !== 'procesando' && !!ganttPartidas
   const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: 7, background: '#0f172a', border: '1px solid #334155', color: '#f1f5f9', fontSize: '0.88rem', boxSizing: 'border-box' }
   const labelStyle = { fontSize: '0.82rem', color: '#94a3b8', marginBottom: 5, display: 'block' }
 
@@ -109,13 +140,24 @@ function FormNuevaObra({ onImportada, onCancelar }) {
         </div>
         <div>
           <label style={labelStyle}>Carta_Gantt.xlsx</label>
-          <input type="file" accept=".xlsx" onChange={e => setGanttFile(e.target.files[0])} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
+          <input type="file" accept=".xlsx" onChange={handleGanttChange} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
+          {ganttEstado === 'procesando' && <div style={{ color: '#60a5fa', fontSize: '0.76rem', marginTop: 4 }}>Leyendo...</div>}
+          {ganttEstado === 'auto-ok' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas</div>}
+          {ganttEstado === 'configurado' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas (manual)</div>}
         </div>
       </div>
+      {ganttEstado === 'necesita-config' && ganttFilas && (
+        <GanttHeaderPicker
+          filas={ganttFilas}
+          workbook={ganttWorkbook}
+          onConfirmar={partidas => { setGanttPartidas(partidas); setGanttEstado('configurado') }}
+          onCancelar={() => { setGanttEstado('idle'); setGanttFile(null); setGanttFilas(null); setGanttWorkbook(null) }}
+        />
+      )}
       {progreso && <div style={{ color: '#60a5fa', fontSize: '0.85rem', marginBottom: 10 }}>{progreso}</div>}
       {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 10 }}>{error}</div>}
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={handleImportar} disabled={importando} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: importando ? '#334155' : '#3b82f6', color: 'white', cursor: importando ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+        <button onClick={handleImportar} disabled={!puedeImportar} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: !puedeImportar ? '#334155' : '#3b82f6', color: 'white', cursor: !puedeImportar ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}>
           {importando ? 'Importando...' : 'Importar'}
         </button>
         <button onClick={onCancelar} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.88rem' }}>
@@ -127,19 +169,46 @@ function FormNuevaObra({ onImportada, onCancelar }) {
 }
 
 function PanelActualizarObra({ obra, onListo, onCancelar }) {
-  const [preguntarAvance, setPreguntarAvance] = useState(true)
-  const [preservar, setPreservar] = useState(null)
+  const [preguntarAvance, setPreguntarAvance] = useState(false)
   const [presupuestoFile, setPresupuestoFile] = useState(null)
   const [ganttFile, setGanttFile] = useState(null)
+  const [ganttWorkbook, setGanttWorkbook] = useState(null)
+  const [ganttEstado, setGanttEstado] = useState('idle')
+  const [ganttPartidas, setGanttPartidas] = useState(null)
+  const [ganttFilas, setGanttFilas] = useState(null)
   const [progreso, setProgreso] = useState('')
   const [error, setError] = useState('')
   const [importando, setImportando] = useState(false)
 
+  async function handleGanttChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setGanttFile(file)
+    setGanttEstado('procesando')
+    setError('')
+    setGanttPartidas(null)
+    setGanttFilas(null)
+    try {
+      const wb = await leerWorkbook(file)
+      setGanttWorkbook(wb)
+      const partidas = parsearGantt(wb)
+      setGanttPartidas(partidas)
+      setGanttEstado('auto-ok')
+    } catch (e) {
+      if (e instanceof GanttFormatError) {
+        setGanttFilas(e.filas)
+        setGanttEstado('necesita-config')
+      } else {
+        setError(e.message)
+        setGanttEstado('idle')
+      }
+    }
+  }
+
   async function handleReimportar(pres) {
-    if (!presupuestoFile || !ganttFile) { setError('Sube ambos archivos xlsx.'); return }
     setError(''); setImportando(true)
     try {
-      await reimportarObra(obra.id, presupuestoFile, ganttFile, pres, setProgreso)
+      await reimportarObra(obra.id, presupuestoFile, ganttFile, pres, setProgreso, ganttPartidas)
       onListo()
     } catch (e) {
       setError(e.message)
@@ -148,6 +217,7 @@ function PanelActualizarObra({ obra, onListo, onCancelar }) {
     }
   }
 
+  const puedeActualizar = !importando && ganttEstado !== 'necesita-config' && ganttEstado !== 'procesando' && !!ganttPartidas && !!presupuestoFile
   const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: 7, background: '#0f172a', border: '1px solid #334155', color: '#f1f5f9', fontSize: '0.88rem', boxSizing: 'border-box' }
   const labelStyle = { fontSize: '0.82rem', color: '#94a3b8', marginBottom: 5, display: 'block' }
 
@@ -163,14 +233,25 @@ function PanelActualizarObra({ obra, onListo, onCancelar }) {
           </div>
           <div>
             <label style={labelStyle}>Carta_Gantt.xlsx</label>
-            <input type="file" accept=".xlsx" onChange={e => setGanttFile(e.target.files[0])} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
+            <input type="file" accept=".xlsx" onChange={handleGanttChange} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
+            {ganttEstado === 'procesando' && <div style={{ color: '#60a5fa', fontSize: '0.76rem', marginTop: 4 }}>Leyendo...</div>}
+            {ganttEstado === 'auto-ok' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas</div>}
+            {ganttEstado === 'configurado' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas (manual)</div>}
           </div>
         </div>
+        {ganttEstado === 'necesita-config' && ganttFilas && (
+          <GanttHeaderPicker
+            filas={ganttFilas}
+            workbook={ganttWorkbook}
+            onConfirmar={partidas => { setGanttPartidas(partidas); setGanttEstado('configurado') }}
+            onCancelar={() => { setGanttEstado('idle'); setGanttFile(null); setGanttFilas(null); setGanttWorkbook(null) }}
+          />
+        )}
         {progreso && <div style={{ color: '#60a5fa', fontSize: '0.85rem', marginBottom: 10 }}>{progreso}</div>}
         {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 10 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={() => { if (!presupuestoFile || !ganttFile) { setError('Sube ambos archivos xlsx.'); return } setPreguntarAvance(true) }}
+            onClick={() => { if (!puedeActualizar) { setError('Sube ambos archivos xlsx.'); return } setPreguntarAvance(true) }}
             disabled={importando}
             style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: importando ? '#334155' : '#1d4ed8', color: 'white', cursor: importando ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}
           >
@@ -181,7 +262,7 @@ function PanelActualizarObra({ obra, onListo, onCancelar }) {
           </button>
         </div>
       </div>
-      {preguntarAvance && !importando && presupuestoFile && ganttFile && (
+      {preguntarAvance && !importando && (
         <DialogoPreservarAvance
           obra={obra}
           onConfirm={pres => { setPreguntarAvance(false); handleReimportar(pres) }}
