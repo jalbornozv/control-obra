@@ -48,6 +48,10 @@
   /* Geometry */
   --r:  6px;
   --rl: 10px;
+
+  /* Shell */
+  --rail:   56px;
+  --topbar: 82px;
 }
 
 *, *::before, *::after {
