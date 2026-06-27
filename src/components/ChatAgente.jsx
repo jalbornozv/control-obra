@@ -36,9 +36,11 @@ const TOOL_ACTUALIZAR = {
 
 function buildContexto(obra, partidas) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
-  const resumen = partidas.map(p =>
-    `- [ID:${p.id}] ${p.nombre} (${p.cuadrilla?.split('.')[0]}): avance ${(p.avance_pct || 0).toFixed(0)}%, días ${p.dia_ini}-${p.dia_fin}, subtotal ${formatCLP(p.subtotal || 0)}`
-  ).join('\n')
+  const resumen = [...partidas]
+    .sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0))
+    .map(p =>
+      `- [N°${p.numero}][ID:${p.id}] ${p.nombre} (${p.cuadrilla?.split('.')[0]}): avance ${(p.avance_pct || 0).toFixed(0)}%, días ${p.dia_ini}-${p.dia_fin}, subtotal ${formatCLP(p.subtotal || 0)}`
+    ).join('\n')
 
   const gg_pct   = obra.gg_pct  ?? 0
   const util_pct = obra.util_pct ?? 0
