@@ -44,6 +44,7 @@ export default function GanttView({ obra, partidas }) {
         <table>
           <thead>
             <tr>
+              <th style={{ width: 36, textAlign: 'center' }}>N°</th>
               <th style={{ width: 280, minWidth: 200 }}>Partida</th>
               <th style={{ width: 60, textAlign: 'center' }}>Ini</th>
               <th style={{ width: 60, textAlign: 'center' }}>Fin</th>
@@ -53,13 +54,19 @@ export default function GanttView({ obra, partidas }) {
           </thead>
           <tbody>
             {filtradas.map(p => {
-              const esperado = calcAvanceEsperado(diaActual, p.dia_ini, p.dia_fin)
-              const semaforo = calcSemaforo(p.avance_pct, esperado)
-              const color    = SEM_COLOR[semaforo]
+              const esperado  = calcAvanceEsperado(diaActual, p.dia_ini, p.dia_fin)
+              const semaforo  = calcSemaforo(p.avance_pct, esperado)
+              const color     = SEM_COLOR[semaforo]
               const totalDias = obra.total_dias
+              const avance    = Math.min(p.avance_pct || 0, 100)
+              const pLeft     = ((p.dia_ini - 1) / totalDias) * 100
+              const pWidth    = ((p.dia_fin - p.dia_ini + 1) / totalDias) * 100
 
               return (
                 <tr key={p.id}>
+                  <td className="m" style={{ textAlign: 'center', color: 'var(--text)', fontSize: '0.72rem' }}>
+                    {p.numero}
+                  </td>
                   <td>
                     <div style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: '0.8rem' }}>
                       {p.nombre}
@@ -71,38 +78,39 @@ export default function GanttView({ obra, partidas }) {
                   <td className="m" style={{ textAlign: 'center', color: 'var(--text)' }}>{p.dia_ini}</td>
                   <td className="m" style={{ textAlign: 'center', color: 'var(--text)' }}>{p.dia_fin}</td>
                   <td className="m" style={{ textAlign: 'center', color, fontWeight: 600 }}>
-                    {(p.avance_pct || 0).toFixed(0)}%
+                    {avance.toFixed(0)}%
                   </td>
                   <td>
-                    <div style={{ position: 'relative', height: 18, background: 'var(--bg)', borderRadius: 3 }}>
+                    {/* Track completo */}
+                    <div style={{ position: 'relative', height: 22, background: 'var(--s2)', borderRadius: 4, border: '1px solid var(--border)' }}>
                       {/* Ventana planificada */}
                       <div style={{
                         position: 'absolute',
-                        left: `${((p.dia_ini - 1) / totalDias) * 100}%`,
-                        width: `${((p.dia_fin - p.dia_ini + 1) / totalDias) * 100}%`,
+                        left: `${pLeft}%`,
+                        width: `${pWidth}%`,
                         height: '100%',
                         background: 'var(--s4)',
-                        borderRadius: 3,
+                        borderLeft: '1px solid var(--border-h)',
+                        borderRight: '1px solid var(--border-h)',
+                        boxSizing: 'border-box',
                       }} />
-                      {/* Avance real */}
+                      {/* Avance real — barra sólida */}
                       <div style={{
                         position: 'absolute',
-                        left: `${((p.dia_ini - 1) / totalDias) * 100}%`,
-                        width: `${((p.dia_fin - p.dia_ini + 1) / totalDias) * 100 * (Math.min(p.avance_pct || 0, 100) / 100)}%`,
+                        left: `${pLeft}%`,
+                        width: `${pWidth * avance / 100}%`,
                         height: '100%',
                         background: color,
-                        borderRadius: 3,
+                        borderRadius: avance >= 100 ? 3 : '3px 0 0 3px',
                         transition: 'width 0.4s',
-                        opacity: 0.85,
                       }} />
                       {/* Línea día actual */}
                       <div style={{
                         position: 'absolute',
                         left: `${(Math.min(diaActual, totalDias) / totalDias) * 100}%`,
-                        width: 1,
+                        width: 2,
                         height: '100%',
                         background: 'var(--gold)',
-                        opacity: 0.7,
                       }} />
                     </div>
                   </td>
