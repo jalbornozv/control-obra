@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { reimportarObra, importarObra, leerWorkbook, parsearGantt, GanttFormatError } from '../lib/importar'
 import { calcDiaActual } from '../lib/calculations'
+import { supabase } from '../lib/supabase'
 import GanttHeaderPicker from './GanttHeaderPicker'
 
 const CONFIRM_STYLES = {
@@ -38,29 +39,66 @@ function DialogoPreservarAvance({ obra, onConfirm, onCancel }) {
   )
 }
 
-function FilaObra({ obra, onActualizar, onCambiar }) {
+function FilaObra({ obra, onActualizar, onCambiar, onFechaActualizada }) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
   const diasRestantes = Math.max(0, obra.total_dias - diaActual + 1)
+  const [nuevaFecha, setNuevaFecha] = useState(obra.fecha_inicio)
+  const [guardando, setGuardando] = useState(false)
+  const [ok, setOk] = useState(false)
+
+  async function aplicarFecha() {
+    if (!nuevaFecha || nuevaFecha === obra.fecha_inicio) return
+    setGuardando(true)
+    const { error } = await supabase.from('obras').update({ fecha_inicio: nuevaFecha }).eq('id', obra.id)
+    setGuardando(false)
+    if (!error) { setOk(true); setTimeout(() => setOk(false), 2000); onFechaActualizada() }
+  }
+
   return (
-    <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, color: '#f1f5f9', fontSize: '0.95rem' }}>{obra.nombre}</div>
-        <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 3 }}>
-          Día {diaActual} de {obra.total_dias} &nbsp;·&nbsp; {diasRestantes} días restantes
+    <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, color: '#f1f5f9', fontSize: '0.95rem' }}>{obra.nombre}</div>
+          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 3 }}>
+            Día {diaActual} de {obra.total_dias} &nbsp;·&nbsp; {diasRestantes} días restantes
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => onCambiar(obra.id)}
+            style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.82rem' }}
+          >
+            Ir a obra
+          </button>
+          <button
+            onClick={() => onActualizar(obra)}
+            style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: 'white', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+          >
+            🔄 Actualizar xlsx
+          </button>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+
+      {/* Fecha de inicio editable */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 10, borderTop: '1px solid #1e3a5f' }}>
+        <span style={{ fontSize: '0.78rem', color: '#64748b', whiteSpace: 'nowrap' }}>Fecha de inicio</span>
+        <input
+          type="date"
+          value={nuevaFecha}
+          onChange={e => { setNuevaFecha(e.target.value); setOk(false) }}
+          style={{ padding: '5px 10px', borderRadius: 6, background: '#0f172a', border: '1px solid #334155', color: '#f1f5f9', fontSize: '0.82rem', fontFamily: 'var(--mono)' }}
+        />
         <button
-          onClick={() => onCambiar(obra.id)}
-          style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.82rem' }}
+          onClick={aplicarFecha}
+          disabled={guardando || nuevaFecha === obra.fecha_inicio}
+          style={{
+            padding: '5px 14px', borderRadius: 6, border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+            background: ok ? '#166534' : nuevaFecha === obra.fecha_inicio ? '#1e293b' : 'var(--gold)',
+            color: ok ? '#4ade80' : nuevaFecha === obra.fecha_inicio ? '#475569' : '#07080F',
+            transition: 'all 0.2s',
+          }}
         >
-          Ir a obra
-        </button>
-        <button
-          onClick={() => onActualizar(obra)}
-          style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: 'white', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
-        >
-          🔄 Actualizar xlsx
+          {guardando ? '...' : ok ? '✓ Aplicado' : 'Aplicar'}
         </button>
       </div>
     </div>
@@ -297,6 +335,7 @@ export default function GestionProyectos({ obras, onCambiarObra, onObrasActualiz
           obra={o}
           onCambiar={id => onCambiarObra(id)}
           onActualizar={obra => { setMostrarNueva(false); setObraActualizando(obra) }}
+          onFechaActualizada={() => onObrasActualizadas(o.id)}
         />
       ))}
 
