@@ -1,7 +1,6 @@
 /* ── SHELL ─────────────────────────────────────────────────── */
 .app {
-  display: grid;
-  grid-template-columns: var(--rail) 1fr;
+  display: flex;
   height: 100svh;
   overflow: hidden;
 }
@@ -12,12 +11,18 @@
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   height: 100svh;
   overflow: hidden;
   z-index: 10;
   padding-bottom: 12px;
   flex-shrink: 0;
+  width: var(--rail);
+  transition: width 0.22s ease;
+}
+
+.rail:hover {
+  width: 190px;
 }
 
 .rail-logo {
@@ -33,13 +38,20 @@
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   user-select: none;
+  flex-shrink: 0;
+}
+
+.rail-logo-img {
+  height: 36px;
+  width: auto;
+  opacity: 0.9;
 }
 
 .rail-logo.clickable {
   cursor: pointer;
-  transition: color 0.15s;
+  transition: opacity 0.15s;
 }
-.rail-logo.clickable:hover { color: var(--gold-l); }
+.rail-logo.clickable:hover .rail-logo-img { opacity: 1; }
 
 .rail-nav {
   display: flex;
@@ -65,12 +77,15 @@
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: 19px;
+  gap: 12px;
   border: none;
   background: transparent;
   color: var(--text);
   cursor: pointer;
   transition: color 0.12s, background 0.12s;
+  white-space: nowrap;
 }
 
 .rail-item::before {
@@ -91,6 +106,20 @@
   flex-shrink: 0;
 }
 
+.rail-label {
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: inherit;
+  opacity: 0;
+  transition: opacity 0.15s ease 0.05s;
+  pointer-events: none;
+}
+
+.rail:hover .rail-label {
+  opacity: 1;
+}
+
 .rail-item:hover {
   color: var(--text-m);
   background: var(--gold-bg);
@@ -105,36 +134,12 @@
   background: var(--gold);
 }
 
-.rail-item::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--s4);
-  border: 1px solid var(--border-h);
-  color: var(--text-h);
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  padding: 4px 10px;
-  border-radius: var(--r);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  z-index: 20;
-}
-
-.rail-item:hover::after {
-  opacity: 1;
-}
-
 /* ── APP BODY ───────────────────────────────────────────────── */
 .app-body {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   height: 100svh;
   overflow: hidden;
 }

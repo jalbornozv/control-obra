@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import sismiaLogo from './assets/sismia-logo.png'
+import sismiaLogoCopia from './assets/sismia-logo-copia.png'
 import { useObras } from './hooks/useObras'
 import { usePartidas } from './hooks/usePartidas'
 import { calcDiaActual, calcAvanceEsperado, calcSemaforo } from './lib/calculations'
@@ -115,7 +116,7 @@ export default function App() {
           onClick={() => obras.length > 1 && setObraSeleccionadaId(null)}
           title={obras.length > 1 ? 'Cambiar proyecto' : undefined}
         >
-          CO
+          <img src={sismiaLogoCopia} alt="Sismia" className="rail-logo-img" />
         </div>
 
         <nav className="rail-nav">
@@ -124,9 +125,9 @@ export default function App() {
               key={id}
               className={`rail-item${tab === id ? ' active' : ''}`}
               onClick={() => setTab(id)}
-              data-tip={label}
             >
               <Icon />
+              <span className="rail-label">{label}</span>
             </button>
           ))}
         </nav>
@@ -135,9 +136,9 @@ export default function App() {
           <button
             className={`rail-item${tab === 'proyectos' ? ' active' : ''}`}
             onClick={() => setTab('proyectos')}
-            data-tip="Proyectos"
           >
             <IconProyectos />
+            <span className="rail-label">Proyectos</span>
           </button>
         </div>
       </aside>
