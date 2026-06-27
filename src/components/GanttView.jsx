@@ -13,7 +13,8 @@ export default function GanttView({ obra, partidas }) {
   const [filtro, setFiltro] = useState('Todas')
 
   const cuadrillas = ['Todas', ...new Set(partidas.map(p => p.cuadrilla).filter(Boolean))]
-  const filtradas  = filtro === 'Todas' ? partidas : partidas.filter(p => p.cuadrilla === filtro)
+  const filtradas  = (filtro === 'Todas' ? partidas : partidas.filter(p => p.cuadrilla === filtro))
+    .slice().sort((a, b) => (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -68,10 +69,10 @@ export default function GanttView({ obra, partidas }) {
                     {p.numero}
                   </td>
                   <td>
-                    <div style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: '0.8rem' }}>
+                    <div style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: '0.875rem' }}>
                       {p.nombre}
                     </div>
-                    <div style={{ color: 'var(--text)', fontSize: '0.65rem', marginTop: 2, fontFamily: 'var(--mono)' }}>
+                    <div style={{ color: 'var(--text)', fontSize: '0.72rem', marginTop: 2, fontFamily: 'var(--mono)' }}>
                       {p.cuadrilla?.split('.')[0]}
                     </div>
                   </td>
