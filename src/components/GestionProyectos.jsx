@@ -47,18 +47,21 @@ function FilaObra({ obra, onActualizar, onCambiar, onFechaActualizada }) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
   const diasRestantes = Math.max(0, obra.total_dias - diaActual + 1)
   const [nuevaFecha, setNuevaFecha] = useState(obra.fecha_inicio)
+  const [nuevaRet, setNuevaRet] = useState(obra.retencion_pct ?? 15)
   const [guardando, setGuardando] = useState(false)
   const [ok, setOk] = useState(false)
 
   async function aplicarFecha() {
-    if (!nuevaFecha || nuevaFecha === obra.fecha_inicio) return
+    if (sinCambio) return
     setGuardando(true)
-    const { error } = await supabase.from('obras').update({ fecha_inicio: nuevaFecha }).eq('id', obra.id)
+    const { error } = await supabase.from('obras')
+      .update({ fecha_inicio: nuevaFecha, retencion_pct: Number(nuevaRet) })
+      .eq('id', obra.id)
     setGuardando(false)
     if (!error) { setOk(true); setTimeout(() => setOk(false), 2000); onFechaActualizada() }
   }
 
-  const sinCambio = nuevaFecha === obra.fecha_inicio
+  const sinCambio = nuevaFecha === obra.fecha_inicio && Number(nuevaRet) === (obra.retencion_pct ?? 15)
 
   return (
     <div style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -85,14 +88,22 @@ function FilaObra({ obra, onActualizar, onCambiar, onFechaActualizada }) {
         </div>
       </div>
 
-      {/* Fecha de inicio editable */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+      {/* Fecha de inicio y retención editables */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.78rem', color: 'var(--text)', whiteSpace: 'nowrap' }}>Fecha de inicio</span>
         <input
           type="date"
           value={nuevaFecha}
           onChange={e => { setNuevaFecha(e.target.value); setOk(false) }}
           style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text-h)', fontSize: '0.82rem', fontFamily: 'var(--mono)' }}
+        />
+        <span style={{ fontSize: '0.78rem', color: 'var(--text)', whiteSpace: 'nowrap', marginLeft: 8 }}>Retención %</span>
+        <input
+          type="number"
+          min="0" max="100" step="0.5"
+          value={nuevaRet}
+          onChange={e => { setNuevaRet(e.target.value); setOk(false) }}
+          style={{ width: 64, padding: '5px 10px', borderRadius: 6, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text-h)', fontSize: '0.82rem', fontFamily: 'var(--mono)' }}
         />
         <button
           onClick={aplicarFecha}

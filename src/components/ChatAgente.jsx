@@ -44,6 +44,7 @@ function buildContexto(obra, partidas) {
 
   const gg_pct   = obra.gg_pct  ?? 0
   const util_pct = obra.util_pct ?? 0
+  const retencion_pct = obra.retencion_pct ?? 15
   const factor   = 1 + gg_pct / 100 + util_pct / 100
   const presupTotal = obra.presupuesto_neto * factor
 
@@ -52,6 +53,7 @@ Hoy es el día ${diaActual} de ${obra.total_dias} días totales.
 Costo directo (partidas): ${formatCLP(obra.presupuesto_neto)}.
 ${gg_pct > 0 || util_pct > 0 ? `Gastos Generales: ${gg_pct}% | Utilidades: ${util_pct}% | Presupuesto total: ${formatCLP(presupTotal)}.
 Al proyectar estado de pago o avance financiero, usa el presupuesto total (que incluye GG y utilidades de forma proporcional al avance del costo directo).` : ''}
+Retención contractual: ${retencion_pct}% (el estado de pago corresponde al ${100 - retencion_pct}% de lo valorizado).
 
 Estado actual de partidas (usa los IDs exactos para actualizar):
 ${resumen}
@@ -109,7 +111,9 @@ export default function ChatAgente({ obra, partidas, onAvanceUpdated }) {
       const response = await anthropicClient.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
-        system: buildContexto(obra, partidas),
+        system: [
+          { type: 'text', text: buildContexto(obra, partidas), cache_control: { type: 'ephemeral' } },
+        ],
         tools: [TOOL_ACTUALIZAR],
         messages: nuevosMensajes.map(m => ({ role: m.role, content: m.content })),
       })

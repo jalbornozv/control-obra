@@ -34,11 +34,12 @@ export default function FinancieroView({ obra, partidas }) {
   const util_pct = obra.util_pct ?? 0
   const factor   = 1 + gg_pct / 100 + util_pct / 100
 
+  const retencion_pct  = obra.retencion_pct ?? 15
   const cd             = obra.presupuesto_neto
   const presupNeto     = cd * factor
   const presupTotal    = presupNeto * (1 + IVA)
   const valorizadoTotal = valorizadoCD * factor
-  const estadoPago     = valorizadoTotal * 0.85
+  const estadoPago     = valorizadoTotal * (1 - retencion_pct / 100)
   const pctValorizado  = presupNeto > 0 ? (valorizadoTotal / presupNeto) * 100 : 0
 
   const tieneGGUtil = gg_pct > 0 || util_pct > 0
@@ -82,7 +83,7 @@ export default function FinancieroView({ obra, partidas }) {
         </div>
         <div className="card bg-verde">
           <div className="stat-value verde" style={{ fontSize: '1.4rem' }}>{formatCLP(estadoPago)}</div>
-          <div className="stat-label">Estado de pago estimado (85%)</div>
+          <div className="stat-label">Estado de pago ({(100 - retencion_pct).toFixed(0)}%)</div>
         </div>
         <div className="card">
           <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatCLP(presupTotal)}</div>
