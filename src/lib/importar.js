@@ -78,7 +78,6 @@ export function parsearPresupuesto(workbook) {
     }
   }
 
-  console.log('[presupuesto] CD:', cd, '| GG:', gg_pct, '% | Util:', util_pct, '%')
   return { items, gg_pct, util_pct }
 }
 

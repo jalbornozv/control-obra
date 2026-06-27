@@ -6,13 +6,13 @@ import GanttHeaderPicker from './GanttHeaderPicker'
 
 const CONFIRM_STYLES = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  box: { background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 28, maxWidth: 420, width: '90%' },
-  title: { fontSize: '1rem', fontWeight: 700, color: '#f1f5f9', marginBottom: 10 },
-  desc: { fontSize: '0.87rem', color: '#94a3b8', marginBottom: 20, lineHeight: 1.5 },
+  box: { background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 12, padding: 28, maxWidth: 420, width: '90%' },
+  title: { fontSize: '1rem', fontWeight: 700, color: 'var(--text-h)', marginBottom: 10 },
+  desc: { fontSize: '0.87rem', color: 'var(--text-m)', marginBottom: 20, lineHeight: 1.5 },
   btns: { display: 'flex', gap: 10 },
-  btnPrimary: { flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#3b82f6', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' },
-  btnSecondary: { flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' },
-  btnDanger: { flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' },
+  btnPrimary: { flex: 1, padding: '10px 0', borderRadius: 8, border: 'none', background: 'var(--gold)', color: '#07080F', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' },
+  btnSecondary: { flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--border-h)', background: 'transparent', color: 'var(--text-m)', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' },
+  btnDanger: { flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--rojo-bdr)', background: 'var(--rojo-bg)', color: 'var(--rojo)', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' },
 }
 
 function DialogoPreservarAvance({ obra, onConfirm, onCancel }) {
@@ -25,10 +25,10 @@ function DialogoPreservarAvance({ obra, onConfirm, onCancel }) {
         </div>
         <div style={{ ...CONFIRM_STYLES.btns, flexDirection: 'column', gap: 10 }}>
           <button style={CONFIRM_STYLES.btnPrimary} onClick={() => onConfirm(true)}>
-            ✅ Mantener avance actual
+            Mantener avance actual
           </button>
           <button style={CONFIRM_STYLES.btnDanger} onClick={() => onConfirm(false)}>
-            🔄 Reiniciar avance a 0%
+            Reiniciar avance a 0%
           </button>
           <button style={CONFIRM_STYLES.btnSecondary} onClick={onCancel}>
             Cancelar
@@ -38,6 +38,10 @@ function DialogoPreservarAvance({ obra, onConfirm, onCancel }) {
     </div>
   )
 }
+
+const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: 7, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text-h)', fontSize: '0.88rem', boxSizing: 'border-box' }
+const labelStyle = { fontSize: '0.82rem', color: 'var(--text-m)', marginBottom: 5, display: 'block' }
+const fileInputStyle = { color: 'var(--text-m)', fontSize: '0.82rem' }
 
 function FilaObra({ obra, onActualizar, onCambiar, onFechaActualizada }) {
   const diaActual = calcDiaActual(obra.fecha_inicio)
@@ -54,47 +58,49 @@ function FilaObra({ obra, onActualizar, onCambiar, onFechaActualizada }) {
     if (!error) { setOk(true); setTimeout(() => setOk(false), 2000); onFechaActualizada() }
   }
 
+  const sinCambio = nuevaFecha === obra.fecha_inicio
+
   return (
-    <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ background: 'var(--s1)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, color: '#f1f5f9', fontSize: '0.95rem' }}>{obra.nombre}</div>
-          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 3 }}>
+          <div style={{ fontWeight: 700, color: 'var(--text-h)', fontSize: '0.95rem' }}>{obra.nombre}</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text)', marginTop: 3, fontFamily: 'var(--mono)' }}>
             Día {diaActual} de {obra.total_dias} &nbsp;·&nbsp; {diasRestantes} días restantes
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={() => onCambiar(obra.id)}
-            style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.82rem' }}
+            style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid var(--border-h)', background: 'transparent', color: 'var(--text-m)', cursor: 'pointer', fontSize: '0.82rem' }}
           >
             Ir a obra
           </button>
           <button
             onClick={() => onActualizar(obra)}
-            style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: '#1d4ed8', color: 'white', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+            style={{ padding: '7px 14px', borderRadius: 7, border: '1px solid var(--gold-bdr)', background: 'var(--gold-bg)', color: 'var(--gold)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
           >
-            🔄 Actualizar xlsx
+            Actualizar xlsx
           </button>
         </div>
       </div>
 
       {/* Fecha de inicio editable */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 10, borderTop: '1px solid #1e3a5f' }}>
-        <span style={{ fontSize: '0.78rem', color: '#64748b', whiteSpace: 'nowrap' }}>Fecha de inicio</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text)', whiteSpace: 'nowrap' }}>Fecha de inicio</span>
         <input
           type="date"
           value={nuevaFecha}
           onChange={e => { setNuevaFecha(e.target.value); setOk(false) }}
-          style={{ padding: '5px 10px', borderRadius: 6, background: '#0f172a', border: '1px solid #334155', color: '#f1f5f9', fontSize: '0.82rem', fontFamily: 'var(--mono)' }}
+          style={{ padding: '5px 10px', borderRadius: 6, background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text-h)', fontSize: '0.82rem', fontFamily: 'var(--mono)' }}
         />
         <button
           onClick={aplicarFecha}
-          disabled={guardando || nuevaFecha === obra.fecha_inicio}
+          disabled={guardando || sinCambio}
           style={{
-            padding: '5px 14px', borderRadius: 6, border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-            background: ok ? '#166534' : nuevaFecha === obra.fecha_inicio ? '#1e293b' : 'var(--gold)',
-            color: ok ? '#4ade80' : nuevaFecha === obra.fecha_inicio ? '#475569' : '#07080F',
+            padding: '5px 14px', borderRadius: 6, border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: guardando || sinCambio ? 'default' : 'pointer',
+            background: ok ? 'var(--verde-bg)' : sinCambio ? 'var(--s3)' : 'var(--gold)',
+            color: ok ? 'var(--verde)' : sinCambio ? 'var(--text)' : '#07080F',
             transition: 'all 0.2s',
           }}
         >
@@ -157,12 +163,10 @@ function FormNuevaObra({ onImportada, onCancelar }) {
   }
 
   const puedeImportar = !importando && ganttEstado !== 'necesita-config' && ganttEstado !== 'procesando' && !!ganttPartidas
-  const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: 7, background: '#0f172a', border: '1px solid #334155', color: '#f1f5f9', fontSize: '0.88rem', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: '0.82rem', color: '#94a3b8', marginBottom: 5, display: 'block' }
 
   return (
-    <div style={{ background: '#1e293b', border: '1px solid #3b82f6', borderRadius: 10, padding: '20px 24px', marginTop: 20 }}>
-      <div style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: 16 }}>➕ Nueva Obra</div>
+    <div style={{ background: 'var(--s1)', border: '1px solid var(--gold-bdr)', borderRadius: 10, padding: '20px 24px', marginTop: 20 }}>
+      <div style={{ fontWeight: 700, color: 'var(--text-h)', marginBottom: 16 }}>Nueva Obra</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
         <div>
           <label style={labelStyle}>Nombre del proyecto</label>
@@ -174,14 +178,14 @@ function FormNuevaObra({ onImportada, onCancelar }) {
         </div>
         <div>
           <label style={labelStyle}>Presupuesto.xlsx</label>
-          <input type="file" accept=".xlsx" onChange={e => setPresupuestoFile(e.target.files[0])} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
+          <input type="file" accept=".xlsx" onChange={e => setPresupuestoFile(e.target.files[0])} style={fileInputStyle} />
         </div>
         <div>
           <label style={labelStyle}>Carta_Gantt.xlsx</label>
-          <input type="file" accept=".xlsx" onChange={handleGanttChange} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
-          {ganttEstado === 'procesando' && <div style={{ color: '#60a5fa', fontSize: '0.76rem', marginTop: 4 }}>Leyendo...</div>}
-          {ganttEstado === 'auto-ok' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas</div>}
-          {ganttEstado === 'configurado' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas (manual)</div>}
+          <input type="file" accept=".xlsx" onChange={handleGanttChange} style={fileInputStyle} />
+          {ganttEstado === 'procesando' && <div style={{ color: 'var(--text-m)', fontSize: '0.76rem', marginTop: 4 }}>Leyendo...</div>}
+          {ganttEstado === 'auto-ok' && <div style={{ color: 'var(--verde)', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas</div>}
+          {ganttEstado === 'configurado' && <div style={{ color: 'var(--verde)', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas (manual)</div>}
         </div>
       </div>
       {ganttEstado === 'necesita-config' && ganttFilas && (
@@ -192,13 +196,13 @@ function FormNuevaObra({ onImportada, onCancelar }) {
           onCancelar={() => { setGanttEstado('idle'); setGanttFile(null); setGanttFilas(null); setGanttWorkbook(null) }}
         />
       )}
-      {progreso && <div style={{ color: '#60a5fa', fontSize: '0.85rem', marginBottom: 10 }}>{progreso}</div>}
-      {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 10 }}>{error}</div>}
+      {progreso && <div style={{ color: 'var(--gold)', fontSize: '0.85rem', marginBottom: 10 }}>{progreso}</div>}
+      {error && <div style={{ color: 'var(--rojo)', fontSize: '0.85rem', marginBottom: 10 }}>{error}</div>}
       <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-        <button onClick={handleImportar} disabled={!puedeImportar} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: !puedeImportar ? '#334155' : '#3b82f6', color: 'white', cursor: !puedeImportar ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}>
+        <button onClick={handleImportar} disabled={!puedeImportar} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: !puedeImportar ? 'var(--s3)' : 'var(--gold)', color: !puedeImportar ? 'var(--text)' : '#07080F', cursor: !puedeImportar ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}>
           {importando ? 'Importando...' : 'Importar'}
         </button>
-        <button onClick={onCancelar} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.88rem' }}>
+        <button onClick={onCancelar} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid var(--border-h)', background: 'transparent', color: 'var(--text-m)', cursor: 'pointer', fontSize: '0.88rem' }}>
           Cancelar
         </button>
       </div>
@@ -256,25 +260,23 @@ function PanelActualizarObra({ obra, onListo, onCancelar }) {
   }
 
   const puedeActualizar = !importando && ganttEstado !== 'necesita-config' && ganttEstado !== 'procesando' && !!ganttPartidas && !!presupuestoFile
-  const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: 7, background: '#0f172a', border: '1px solid #334155', color: '#f1f5f9', fontSize: '0.88rem', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: '0.82rem', color: '#94a3b8', marginBottom: 5, display: 'block' }
 
   return (
     <>
-      <div style={{ background: '#1e293b', border: '1px solid #1d4ed8', borderRadius: 10, padding: '20px 24px', marginTop: 20 }}>
-        <div style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: 4 }}>🔄 Actualizar datos — {obra.nombre}</div>
-        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 16 }}>Sube los archivos xlsx actualizados</div>
+      <div style={{ background: 'var(--s1)', border: '1px solid var(--gold-bdr)', borderRadius: 10, padding: '20px 24px', marginTop: 20 }}>
+        <div style={{ fontWeight: 700, color: 'var(--text-h)', marginBottom: 4 }}>Actualizar datos — {obra.nombre}</div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text)', marginBottom: 16 }}>Sube los archivos xlsx actualizados</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
             <label style={labelStyle}>Presupuesto.xlsx</label>
-            <input type="file" accept=".xlsx" onChange={e => setPresupuestoFile(e.target.files[0])} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
+            <input type="file" accept=".xlsx" onChange={e => setPresupuestoFile(e.target.files[0])} style={fileInputStyle} />
           </div>
           <div>
             <label style={labelStyle}>Carta_Gantt.xlsx</label>
-            <input type="file" accept=".xlsx" onChange={handleGanttChange} style={{ color: '#94a3b8', fontSize: '0.82rem' }} />
-            {ganttEstado === 'procesando' && <div style={{ color: '#60a5fa', fontSize: '0.76rem', marginTop: 4 }}>Leyendo...</div>}
-            {ganttEstado === 'auto-ok' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas</div>}
-            {ganttEstado === 'configurado' && <div style={{ color: '#22c55e', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas (manual)</div>}
+            <input type="file" accept=".xlsx" onChange={handleGanttChange} style={fileInputStyle} />
+            {ganttEstado === 'procesando' && <div style={{ color: 'var(--text-m)', fontSize: '0.76rem', marginTop: 4 }}>Leyendo...</div>}
+            {ganttEstado === 'auto-ok' && <div style={{ color: 'var(--verde)', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas</div>}
+            {ganttEstado === 'configurado' && <div style={{ color: 'var(--verde)', fontSize: '0.76rem', marginTop: 4 }}>✓ {ganttPartidas?.length} partidas (manual)</div>}
           </div>
         </div>
         {ganttEstado === 'necesita-config' && ganttFilas && (
@@ -285,17 +287,17 @@ function PanelActualizarObra({ obra, onListo, onCancelar }) {
             onCancelar={() => { setGanttEstado('idle'); setGanttFile(null); setGanttFilas(null); setGanttWorkbook(null) }}
           />
         )}
-        {progreso && <div style={{ color: '#60a5fa', fontSize: '0.85rem', marginBottom: 10 }}>{progreso}</div>}
-        {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 10 }}>{error}</div>}
+        {progreso && <div style={{ color: 'var(--gold)', fontSize: '0.85rem', marginBottom: 10 }}>{progreso}</div>}
+        {error && <div style={{ color: 'var(--rojo)', fontSize: '0.85rem', marginBottom: 10 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             onClick={() => { if (!puedeActualizar) { setError('Sube ambos archivos xlsx.'); return } setPreguntarAvance(true) }}
             disabled={importando}
-            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: importando ? '#334155' : '#1d4ed8', color: 'white', cursor: importando ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}
+            style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: importando ? 'var(--s3)' : 'var(--gold)', color: importando ? 'var(--text)' : '#07080F', cursor: importando ? 'default' : 'pointer', fontWeight: 600, fontSize: '0.88rem' }}
           >
             {importando ? 'Actualizando...' : 'Actualizar'}
           </button>
-          <button onClick={onCancelar} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid #334155', background: 'transparent', color: '#94a3b8', cursor: 'pointer', fontSize: '0.88rem' }}>
+          <button onClick={onCancelar} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid var(--border-h)', background: 'transparent', color: 'var(--text-m)', cursor: 'pointer', fontSize: '0.88rem' }}>
             Cancelar
           </button>
         </div>
@@ -322,9 +324,9 @@ export default function GestionProyectos({ obras, onCambiarObra, onObrasActualiz
         {!mostrarNueva && !obraActualizando && (
           <button
             onClick={() => setMostrarNueva(true)}
-            style={{ padding: '8px 18px', borderRadius: 8, border: '1px dashed #3b82f6', background: 'transparent', color: '#3b82f6', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem' }}
+            style={{ padding: '8px 18px', borderRadius: 8, border: '1px dashed var(--gold-bdr)', background: 'transparent', color: 'var(--gold)', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem' }}
           >
-            ➕ Nueva Obra
+            + Nueva Obra
           </button>
         )}
       </div>
