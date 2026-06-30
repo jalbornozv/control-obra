@@ -46,7 +46,7 @@ describe('parsearPresupuesto', () => {
     ])
 
     const wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } }
-    const result = parsearPresupuesto(wb)
+    const { items: result } = parsearPresupuesto(wb)
 
     expect(result.size).toBe(2)
     expect(result.get('1')).toMatchObject({
@@ -70,7 +70,7 @@ describe('parsearPresupuesto', () => {
     ])
 
     const wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } }
-    const result = parsearPresupuesto(wb)
+    const { items: result } = parsearPresupuesto(wb)
     expect(result.size).toBe(1)
   })
 
@@ -92,7 +92,7 @@ describe('parsearPresupuesto', () => {
     ])
 
     const wb = { SheetNames: ['Sheet1'], Sheets: { Sheet1: {} } }
-    const result = parsearPresupuesto(wb)
+    const { items: result } = parsearPresupuesto(wb)
     expect(result.get('1').seccion).toBe('A. FUNDACIONES')
     expect(result.get('2').seccion).toBe('B. ESTRUCTURA')
   })
