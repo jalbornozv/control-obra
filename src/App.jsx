@@ -13,6 +13,7 @@ import ReportePDF from './components/ReportePDF'
 import ProyectoSelector from './components/ProyectoSelector'
 import NuevaObra from './components/NuevaObra'
 import GestionProyectos from './components/GestionProyectos'
+import PanelCliente from './components/PanelCliente'
 import { getSession } from './lib/auth'
 import LoginScreen from './components/LoginScreen'
 
@@ -90,7 +91,7 @@ export default function App() {
   if (!sessionState) return <LoginScreen onLogin={s => setSessionState(s)} />
 
   if (sessionState.rol === 'mandante')
-    return <div style={{ padding: 24, color: 'var(--text-h)' }}>Panel Mandante — próximamente</div>
+    return <PanelCliente obraId={sessionState.obraId} onLogout={() => setSessionState(null)} />
 
   if (sessionState.rol === 'trabajador')
     return <div style={{ padding: 24, color: 'var(--text-h)' }}>Vista Terreno — próximamente</div>
