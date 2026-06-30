@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { reimportarObra, importarObra, leerWorkbook, parsearGantt, GanttFormatError } from '../lib/importar'
 import { calcDiaActual } from '../lib/calculations'
 import { supabase } from '../lib/supabase'
+import { hashPin } from '../lib/auth'
 import GanttHeaderPicker from './GanttHeaderPicker'
 
 const CONFIRM_STYLES = {
@@ -324,6 +325,129 @@ function PanelActualizarObra({ obra, onListo, onCancelar }) {
   )
 }
 
+function SeccionAccesos({ obras }) {
+  const [obraId, setObraId]           = useState(null)
+  const [trabajadores, setTrabajadores] = useState([])
+  const [nuevoNombre, setNuevoNombre]   = useState('')
+  const [nuevoPin, setNuevoPin]         = useState('')
+  const [pinCliente, setPinCliente]     = useState('')
+  const [adminPin, setAdminPin]         = useState('')
+  const [adminPinNuevo, setAdminPinNuevo] = useState('')
+  const [adminPinConf, setAdminPinConf]   = useState('')
+  const [msg, setMsg]     = useState('')
+  const [msgAdmin, setMsgAdmin] = useState('')
+
+  async function abrirObra(obra) {
+    if (obraId === obra.id) { setObraId(null); return }
+    setObraId(obra.id)
+    setPinCliente(obra.pin_cliente || '')
+    setMsg('')
+    const { data } = await supabase.from('usuarios').select('id, nombre').eq('obra_id', obra.id).eq('rol', 'trabajador')
+    setTrabajadores(data || [])
+  }
+
+  async function crearTrabajador() {
+    if (!nuevoNombre.trim() || nuevoPin.length < 4) { setMsg('Nombre y PIN mínimo 4 dígitos'); return }
+    const pin_hash = await hashPin(nuevoPin)
+    const { error } = await supabase.from('usuarios').insert({ nombre: nuevoNombre.trim(), pin_hash, rol: 'trabajador', obra_id: obraId })
+    if (error) { setMsg('Error: ' + error.message); return }
+    const { data } = await supabase.from('usuarios').select('id, nombre').eq('obra_id', obraId).eq('rol', 'trabajador')
+    setTrabajadores(data || [])
+    setNuevoNombre(''); setNuevoPin(''); setMsg('Trabajador creado')
+  }
+
+  async function borrarTrabajador(id) {
+    await supabase.from('usuarios').delete().eq('id', id)
+    setTrabajadores(prev => prev.filter(t => t.id !== id))
+  }
+
+  async function guardarPinCliente() {
+    if (!pinCliente.trim()) { setMsg('Ingresa un PIN'); return }
+    const { error } = await supabase.from('obras').update({ pin_cliente: pinCliente }).eq('id', obraId)
+    setMsg(error ? 'Error: ' + error.message : 'PIN mandante guardado')
+  }
+
+  async function cambiarPinAdmin() {
+    if (adminPinNuevo.length < 4) { setMsgAdmin('PIN mínimo 4 dígitos'); return }
+    if (adminPinNuevo !== adminPinConf) { setMsgAdmin('Los PINs no coinciden'); return }
+    const hashActual = await hashPin(adminPin)
+    const { data } = await supabase.from('usuarios').select('id').eq('rol', 'admin').eq('pin_hash', hashActual).single()
+    if (!data) { setMsgAdmin('PIN actual incorrecto'); return }
+    const nuevoHash = await hashPin(adminPinNuevo)
+    await supabase.from('usuarios').update({ pin_hash: nuevoHash }).eq('rol', 'admin')
+    setAdminPin(''); setAdminPinNuevo(''); setAdminPinConf('')
+    setMsgAdmin('PIN de administrador actualizado')
+  }
+
+  const inStyle = { padding: '8px 12px', borderRadius: 'var(--r)', background: 'var(--s2)', border: '1px solid var(--border)', color: 'var(--text-h)', fontSize: 16, fontFamily: 'var(--font)', boxSizing: 'border-box', width: '100%' }
+
+  return (
+    <div style={{ marginTop: 40 }}>
+      <h2 style={{ marginBottom: 16 }}>ACCESOS</h2>
+
+      {obras.map(obra => (
+        <div key={obra.id} className="card" style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: 'var(--text-h)', fontWeight: 500 }}>{obra.nombre}</span>
+            <button className="btn" onClick={() => abrirObra(obra)}>
+              {obraId === obra.id ? 'Cerrar' : 'Gestionar'}
+            </button>
+          </div>
+
+          {obraId === obra.id && (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+              {/* PIN mandante */}
+              <div>
+                <p style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>PIN Mandante</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={{ ...inStyle, maxWidth: 180 }} placeholder="PIN para el mandante" value={pinCliente} onChange={e => setPinCliente(e.target.value)} />
+                  <button className="btn btn-gold" onClick={guardarPinCliente}>Guardar</button>
+                </div>
+              </div>
+
+              {/* Trabajadores */}
+              <div>
+                <p style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Trabajadores</p>
+                {trabajadores.length === 0
+                  ? <p style={{ color: 'var(--text)', fontSize: '0.82rem', marginBottom: 8 }}>Sin trabajadores asignados</p>
+                  : trabajadores.map(t => (
+                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-h)' }}>{t.nombre}</span>
+                      <button className="btn" onClick={() => borrarTrabajador(t.id)} style={{ color: 'var(--rojo)', borderColor: 'var(--rojo-bdr)', fontSize: '0.72rem' }}>Eliminar</button>
+                    </div>
+                  ))
+                }
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <input style={{ ...inStyle, flex: 1 }} placeholder="Nombre" value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} />
+                  <input style={{ ...inStyle, width: 90, flex: 'none' }} type="password" inputMode="numeric" placeholder="PIN" value={nuevoPin} onChange={e => setNuevoPin(e.target.value)} />
+                  <button className="btn btn-gold" onClick={crearTrabajador}>Agregar</button>
+                </div>
+              </div>
+
+              {msg && <p style={{ color: 'var(--gold)', fontFamily: 'var(--mono)', fontSize: '0.72rem' }}>{msg}</p>}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Cambiar PIN admin */}
+      <div className="card" style={{ marginTop: 24 }}>
+        <p style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 14 }}>
+          Cambiar PIN Administrador
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 280 }}>
+          <input style={inStyle} type="password" inputMode="numeric" placeholder="PIN actual" value={adminPin} onChange={e => setAdminPin(e.target.value)} />
+          <input style={inStyle} type="password" inputMode="numeric" placeholder="PIN nuevo" value={adminPinNuevo} onChange={e => setAdminPinNuevo(e.target.value)} />
+          <input style={inStyle} type="password" inputMode="numeric" placeholder="Confirmar PIN nuevo" value={adminPinConf} onChange={e => setAdminPinConf(e.target.value)} />
+          <button className="btn btn-gold" onClick={cambiarPinAdmin}>Cambiar PIN</button>
+        </div>
+        {msgAdmin && <p style={{ color: 'var(--gold)', fontFamily: 'var(--mono)', fontSize: '0.72rem', marginTop: 10 }}>{msgAdmin}</p>}
+      </div>
+    </div>
+  )
+}
+
 export default function GestionProyectos({ obras, onCambiarObra, onObrasActualizadas }) {
   const [mostrarNueva, setMostrarNueva] = useState(false)
   const [obraActualizando, setObraActualizando] = useState(null)
@@ -366,6 +490,8 @@ export default function GestionProyectos({ obras, onCambiarObra, onObrasActualiz
           onCancelar={() => setObraActualizando(null)}
         />
       )}
+
+      <SeccionAccesos obras={obras} />
     </div>
   )
 }
