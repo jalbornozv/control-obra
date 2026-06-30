@@ -14,6 +14,7 @@ import ProyectoSelector from './components/ProyectoSelector'
 import NuevaObra from './components/NuevaObra'
 import GestionProyectos from './components/GestionProyectos'
 import PanelCliente from './components/PanelCliente'
+import VistaTerreno from './components/VistaTerreno'
 import { getSession } from './lib/auth'
 import LoginScreen from './components/LoginScreen'
 
@@ -94,7 +95,7 @@ export default function App() {
     return <PanelCliente obraId={sessionState.obraId} onLogout={() => setSessionState(null)} />
 
   if (sessionState.rol === 'trabajador')
-    return <div style={{ padding: 24, color: 'var(--text-h)' }}>Vista Terreno — próximamente</div>
+    return <VistaTerreno obraId={sessionState.obraId} usuario={sessionState} onLogout={() => setSessionState(null)} />
 
   if (obrasLoading) return <div className="loading">Cargando</div>
 
