@@ -574,3 +574,104 @@ td.m { font-family: var(--mono); }
   flex-shrink: 0;
   animation: status-pulse 2s ease-in-out infinite;
 }
+
+/* ── LOGIN ──────────────────────────────────────────────── */
+.login-screen {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.login-card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--rl);
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.login-title {
+  font-family: var(--disp);
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  color: var(--text-h);
+}
+
+.login-roles { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+
+.login-rol-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-h);
+  background: var(--s2);
+  color: var(--text-m);
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: left;
+}
+.login-rol-btn:hover { background: var(--s3); color: var(--text-h); border-color: var(--gold-bdr); }
+
+.login-form { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+.login-input {
+  padding: 11px 14px;
+  border-radius: var(--r);
+  background: var(--s2);
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  font-size: 16px;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.login-input:focus { border-color: var(--gold-bdr); }
+.login-input::placeholder { color: var(--text); }
+
+.login-submit {
+  padding: 12px;
+  border-radius: var(--r);
+  border: none;
+  background: var(--gold);
+  color: #07080F;
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s;
+  width: 100%;
+}
+.login-submit:disabled { background: var(--s3); color: var(--text); cursor: default; }
+.login-submit:not(:disabled):hover { background: var(--gold-l); }
+
+.login-error {
+  color: var(--rojo);
+  font-size: 0.78rem;
+  font-family: var(--mono);
+  text-align: center;
+}
+
+.login-back {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-family: var(--mono);
+  cursor: pointer;
+  align-self: flex-start;
+  padding: 0;
+  letter-spacing: 0.06em;
+}
+.login-back:hover { color: var(--text-m); }
