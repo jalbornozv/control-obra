@@ -83,6 +83,13 @@ export default function VistaTerreno({ obraId, usuario, onLogout }) {
 
   if (loading) return <div className="loading">Cargando</div>
 
+  if (!obra) return (
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '40px 16px', textAlign: 'center' }}>
+      <p style={{ color: 'var(--text-m)', marginBottom: 16 }}>Obra no encontrada.</p>
+      <button className="btn" onClick={() => { clearSession(); onLogout() }}>Salir</button>
+    </div>
+  )
+
   const dia      = calcDiaActual(obra.fecha_inicio)
   const diaLabel = Math.min(Math.max(1, dia), obra.total_dias)
 
