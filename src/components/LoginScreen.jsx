@@ -21,14 +21,19 @@ export default function LoginScreen({ onLogin }) {
     e.preventDefault()
     setError('')
     setCargando(true)
-    let session = null
-    if (rol === 'admin')      session = await loginAdmin(pin)
-    if (rol === 'trabajador') session = await loginTrabajador(nombre.trim(), pin)
-    if (rol === 'mandante')   session = await loginMandante(pin)
-    setCargando(false)
-    if (!session) { setError('PIN incorrecto'); return }
-    setSession(session)
-    onLogin(session)
+    try {
+      let session = null
+      if (rol === 'admin')      session = await loginAdmin(pin)
+      if (rol === 'trabajador') session = await loginTrabajador(nombre.trim(), pin)
+      if (rol === 'mandante')   session = await loginMandante(pin)
+      if (!session) { setError('PIN incorrecto'); return }
+      setSession(session)
+      onLogin(session)
+    } catch {
+      setError('Error al conectar. Intenta de nuevo.')
+    } finally {
+      setCargando(false)
+    }
   }
 
   return (
