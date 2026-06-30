@@ -13,6 +13,8 @@ import ReportePDF from './components/ReportePDF'
 import ProyectoSelector from './components/ProyectoSelector'
 import NuevaObra from './components/NuevaObra'
 import GestionProyectos from './components/GestionProyectos'
+import { getSession } from './lib/auth'
+import LoginScreen from './components/LoginScreen'
 
 const IconResumen = () => (
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -77,12 +79,21 @@ export default function App() {
   const [tab, setTab] = useState('resumen')
   const [obraSeleccionadaId, setObraSeleccionadaId] = useState(null)
   const [mostrarNueva, setMostrarNueva] = useState(false)
+  const [sessionState, setSessionState] = useState(() => getSession())
 
   const { obras, loading: obrasLoading, refetch: refetchObras } = useObras()
   const obraActual = obras.find(o => o.id === obraSeleccionadaId) || (obras.length === 1 ? obras[0] : null)
   const { partidas, loading: partidasLoading, refetch } = usePartidas(obraActual?.id)
 
   if (isPreviewRoute) return <ReportePDF />
+
+  if (!sessionState) return <LoginScreen onLogin={s => setSessionState(s)} />
+
+  if (sessionState.rol === 'mandante')
+    return <div style={{ padding: 24, color: 'var(--text-h)' }}>Panel Mandante — próximamente</div>
+
+  if (sessionState.rol === 'trabajador')
+    return <div style={{ padding: 24, color: 'var(--text-h)' }}>Vista Terreno — próximamente</div>
 
   if (obrasLoading) return <div className="loading">Cargando</div>
 
