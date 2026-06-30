@@ -11,7 +11,7 @@ export default function PanelCliente({ obraId, onLogout }) {
   useEffect(() => {
     async function cargar() {
       const [{ data: o }, { data: p }] = await Promise.all([
-        supabase.from('obras').select('*').eq('id', obraId).single(),
+        supabase.from('obras').select('id, nombre, fecha_inicio, total_dias').eq('id', obraId).single(),
         supabase.from('partidas')
           .select('id, numero, nombre, cuadrilla, dia_ini, dia_fin, avance_pct')
           .eq('obra_id', obraId).order('numero'),
@@ -24,6 +24,7 @@ export default function PanelCliente({ obraId, onLogout }) {
   }, [obraId])
 
   if (loading) return <div className="loading">Cargando</div>
+  if (!obra) return <div className="loading">Obra no encontrada</div>
 
   const dia          = calcDiaActual(obra.fecha_inicio)
   const diaLabel     = Math.min(Math.max(1, dia), obra.total_dias)
